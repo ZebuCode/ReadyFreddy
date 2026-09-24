@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student | ReadyFreddy</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="student-view">
+    <main class="panel student-panel">
+      <img src="/images/horizontal_logo.png" alt="Ready Freddy logo" class="brand-logo" />
+      <section id="joinSection" class="connect-section student-join">
+        <label for="roomCodeInput">Enter class code</label>
+        <input id="roomCodeInput" type="text" maxlength="6" placeholder="ABC123" autocomplete="off" />
+        <button id="joinBtn" class="btn" type="button">Join class</button>
+        <p id="joinError" class="error"></p>
+      </section>
+
+      <section id="studentControls" class="hidden">
+        <p class="small">Class code: <strong id="activeRoomCode">------</strong></p>
+        <p class="small">Tap once when ready.</p>
+
+        <button id="readyButton" class="ready-btn not-ready" type="button" aria-pressed="false">
+          Not ready
+        </button>
+
+        <p id="statusText" class="status-line">Waiting for your input</p>
+        <p id="counterText" class="small muted">0 / 0 ready</p>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/student.js"></script>
+  </body>
+</html>

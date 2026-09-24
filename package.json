@@ -1,0 +1,13 @@
+{
+  "name": "readyfreddy",
+  "version": "1.0.0",
+  "description": "Simple live classroom readiness tracker",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.1",
+    "socket.io": "^4.8.0"
+  }
+}

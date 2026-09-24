@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher | ReadyFreddy</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="teacher-view">
+    <main class="panel teacher-panel">
+      <div class="teacher-header">
+        <img src="/images/horizontal_logo.png" alt="Ready Freddy logo" class="brand-logo brand-logo-small" />
+        <h1 class="brand-title teacher-title">Teacher dashboard</h1>
+      </div>
+      <p class="small muted">Share this code with students:</p>
+      <p id="roomCode" class="room-code">------</p>
+      <p id="teacherStatus" class="small muted">Connecting...</p>
+
+      <div class="summary-row">
+        <div>
+          <p class="small muted">Ready now</p>
+          <p id="readyCount" class="counter">0 / 0</p>
+        </div>
+        <button id="resetBtn" class="btn ghost" type="button">Reset all</button>
+      </div>
+
+      <ul id="studentList" class="student-list"></ul>
+    </main>
+
+    <div id="resetModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="resetModalTitle">
+      <div class="modal-card">
+        <h2 id="resetModalTitle">Reset all statuses?</h2>
+        <p class="small muted">This will mark every student as not ready.</p>
+        <div class="modal-actions">
+          <button id="cancelResetBtn" class="btn ghost" type="button">Cancel</button>
+          <button id="confirmResetBtn" class="btn" type="button">Confirm reset</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/teacher.js"></script>
+  </body>
+</html>
