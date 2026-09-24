@@ -18,16 +18,39 @@
 
       <section id="studentControls" class="hidden">
         <p class="small">Class code: <strong id="activeRoomCode">------</strong></p>
-        <p class="small">Tap once when ready.</p>
+        <p id="exerciseProgressText" class="exercise-step-label hidden">0 / 0</p>
 
-        <button id="readyButton" class="ready-btn not-ready" type="button" aria-pressed="false">
-          Not ready
-        </button>
+        <label id="readyToggleRow" class="ready-checkbox-row" for="readyCheckbox">
+          <input id="readyCheckbox" class="ready-checkbox-input" type="checkbox" />
+          <span class="ready-checkbox-visual" aria-hidden="true">
+            <svg class="ready-check-svg" viewBox="0 0 56 56" focusable="false" aria-hidden="true">
+              <path class="ready-check-base" d="M11 29 L21 39 L45 15"></path>
+              <path class="ready-check-draw" d="M11 29 L21 39 L45 15"></path>
+            </svg>
+          </span>
+          <span class="ready-checkbox-label">Ready</span>
+        </label>
+        <button id="readyButton" class="ready-btn ready hidden" type="button">Next excercise</button>
+        <button id="previousExerciseBtn" class="link-btn hidden" type="button">previous excercise</button>
 
         <p id="statusText" class="status-line">Waiting for your input</p>
-        <p id="counterText" class="small muted">0 / 0 ready</p>
+        <p id="counterText" class="small muted">0 / 0 students are ready</p>
       </section>
     </main>
+
+    <div id="nameModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="nameModalTitle">
+      <div class="modal-card">
+        <h2 id="nameModalTitle">Your name</h2>
+        <p class="small muted">Please enter your name to continue.</p>
+        <div class="name-entry">
+          <input id="studentNameInput" type="text" maxlength="40" placeholder="Your name" autocomplete="name" />
+          <p id="nameError" class="error"></p>
+        </div>
+        <div class="modal-actions">
+          <button id="saveNameBtn" class="btn" type="button">Save name</button>
+        </div>
+      </div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/student.js"></script>

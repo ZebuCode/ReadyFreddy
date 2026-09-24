@@ -10,7 +10,13 @@
     <main class="panel teacher-panel">
       <div class="teacher-header">
         <img src="/images/horizontal_logo.png" alt="Ready Freddy logo" class="brand-logo brand-logo-small" />
-        <h1 class="brand-title teacher-title">Teacher dashboard</h1>
+        <div class="teacher-header-main">
+          <h1 class="brand-title teacher-title">Teacher dashboard</h1>
+          <div class="teacher-header-actions">
+            <button id="configureExercisesBtn" class="btn ghost" type="button">Configure Session</button>
+            <button id="resetBtn" class="btn ghost" type="button">Reset Session</button>
+          </div>
+        </div>
       </div>
       <p class="small muted">Share this code with students:</p>
       <p id="roomCode" class="room-code">------</p>
@@ -21,8 +27,9 @@
           <p class="small muted">Ready now</p>
           <p id="readyCount" class="counter">0 / 0</p>
         </div>
-        <button id="resetBtn" class="btn ghost" type="button">Reset all</button>
       </div>
+
+      <p id="exerciseSummary" class="small muted">0 / 0 exercises done</p>
 
       <ul id="studentList" class="student-list"></ul>
     </main>
@@ -34,6 +41,27 @@
         <div class="modal-actions">
           <button id="cancelResetBtn" class="btn ghost" type="button">Cancel</button>
           <button id="confirmResetBtn" class="btn" type="button">Confirm reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="exerciseModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="exerciseModalTitle">
+      <div class="modal-card">
+        <h2 id="exerciseModalTitle">Configure excercises</h2>
+        <p class="small muted">Set the total number of excercises for this class.</p>
+        <div class="exercise-input-row">
+          <input id="exerciseAmount" type="number" min="0" step="1" value="0" />
+          <button id="removeExerciseBtn" class="btn ghost icon-btn" type="button" aria-label="Revert exercise amount" title="Revert exercise amount">
+            <span class="icon-glyph" aria-hidden="true">&#8634;</span>
+          </button>
+        </div>
+        <label class="require-name-row" for="requireNameCheckbox">
+          <input id="requireNameCheckbox" type="checkbox" />
+          <span>Require name</span>
+        </label>
+        <div class="modal-actions">
+          <button id="cancelExerciseBtn" class="btn ghost" type="button">Cancel</button>
+          <button id="saveExerciseBtn" class="btn" type="button">Save</button>
         </div>
       </div>
     </div>

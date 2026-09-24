@@ -17,7 +17,17 @@ function createRoom() {
         students: new Map(),
         connectedStudentSockets: new Map(),
         teacherSockets: new Set(),
+        totalExercises: 0,
+        requireName: false,
     };
+}
+
+function normalizeStudentName(input) {
+    if (typeof input !== "string") {
+        return "";
+    }
+
+    return input.trim().slice(0, 40);
 }
 
 function normalizeRoomCode(input) {
@@ -43,6 +53,27 @@ function generateRoomCode() {
     return code;
 }
 
+function getSafeCompletedExercises(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+        return 0;
+    }
+
+    return Math.max(0, Math.floor(parsed));
+}
+
+function syncStudentReadyWithExercises(student, room) {
+    if (!student || !room) {
+        return;
+    }
+
+    student.completedExercises = getSafeCompletedExercises(student.completedExercises);
+
+    if (room.totalExercises > 0) {
+        student.ready = student.completedExercises >= room.totalExercises;
+    }
+}
+
 function buildState(roomCode) {
     const room = rooms.get(roomCode);
     if (!room) {
@@ -51,26 +82,47 @@ function buildState(roomCode) {
             students: [],
             totalCount: 0,
             readyCount: 0,
+            totalExercises: 0,
+            requireName: false,
+            completedExercises: 0,
             updatedAt: Date.now(),
         };
     }
 
-    const studentList = Array.from(room.students.values()).map((student) => ({
-        id: student.id,
-        ready: student.ready,
-        connected: room.connectedStudentSockets.has(student.id),
-        updatedAt: student.updatedAt,
-    }));
+    const studentList = Array.from(room.students.values()).map((student) => {
+        const completedExercises = getSafeCompletedExercises(student.completedExercises);
+        student.completedExercises = completedExercises;
+
+        const derivedReady = room.totalExercises > 0
+            ? completedExercises >= room.totalExercises
+            : Boolean(student.ready);
+
+        // Keep internal room state aligned with derived state.
+        student.ready = derivedReady;
+
+        return {
+            id: student.id,
+            name: student.name,
+            ready: derivedReady,
+            completedExercises,
+            connected: room.connectedStudentSockets.has(student.id),
+            updatedAt: student.updatedAt,
+        };
+    });
 
     studentList.sort((a, b) => a.updatedAt - b.updatedAt);
 
     const readyCount = studentList.filter((student) => student.ready).length;
+    const completedExercises = studentList.reduce((sum, student) => sum + (student.completedExercises || 0), 0);
 
     return {
         roomCode,
         students: studentList,
         totalCount: studentList.length,
         readyCount,
+        totalExercises: room.totalExercises,
+        requireName: room.requireName,
+        completedExercises,
         updatedAt: Date.now(),
     };
 }
@@ -123,8 +175,44 @@ io.on("connection", (socket) => {
         socket.on("teacher:reset", () => {
             room.students.forEach((student) => {
                 student.ready = false;
+                student.completedExercises = 0;
                 student.updatedAt = Date.now();
             });
+            broadcastState(roomCode);
+        });
+
+        socket.on("teacher:set-total-exercises", (payload) => {
+            const amount = Number(payload && payload.amount);
+            if (!Number.isFinite(amount)) {
+                return;
+            }
+
+            room.totalExercises = Math.max(0, Math.floor(amount));
+
+            room.students.forEach((student) => {
+                let changed = false;
+                student.completedExercises = getSafeCompletedExercises(student.completedExercises);
+                if (student.completedExercises > room.totalExercises) {
+                    student.completedExercises = room.totalExercises;
+                    changed = true;
+                }
+
+                const wasReady = student.ready;
+                syncStudentReadyWithExercises(student, room);
+                if (student.ready !== wasReady) {
+                    changed = true;
+                }
+
+                if (changed) {
+                    student.updatedAt = Date.now();
+                }
+            });
+
+            broadcastState(roomCode);
+        });
+
+        socket.on("teacher:set-require-name", (payload) => {
+            room.requireName = Boolean(payload && payload.requireName);
             broadcastState(roomCode);
         });
 
@@ -146,6 +234,7 @@ io.on("connection", (socket) => {
 
         const room = rooms.get(roomCode);
         let sessionId = socket.handshake.auth.sessionId;
+        const incomingName = normalizeStudentName(socket.handshake.auth.name);
 
         if (!sessionId || typeof sessionId !== "string") {
             sessionId = randomUUID();
@@ -160,10 +249,18 @@ io.on("connection", (socket) => {
         if (!room.students.has(sessionId)) {
             room.students.set(sessionId, {
                 id: sessionId,
+                name: incomingName,
                 ready: false,
+                completedExercises: 0,
                 updatedAt: Date.now(),
             });
+        } else if (incomingName) {
+            const existingStudent = room.students.get(sessionId);
+            existingStudent.name = incomingName;
+            existingStudent.updatedAt = Date.now();
         }
+
+        syncStudentReadyWithExercises(room.students.get(sessionId), room);
 
         socket.emit("session:assigned", sessionId);
         socket.emit("state:update", buildState(roomCode));
@@ -175,7 +272,69 @@ io.on("connection", (socket) => {
                 return;
             }
 
+            if (room.totalExercises > 0) {
+                syncStudentReadyWithExercises(student, room);
+                broadcastState(roomCode);
+                return;
+            }
+
+            if (room.requireName && !student.name) {
+                return;
+            }
+
             student.ready = Boolean(payload && payload.ready);
+            student.updatedAt = Date.now();
+            broadcastState(roomCode);
+        });
+
+        socket.on("student:complete-exercise", () => {
+            const student = room.students.get(sessionId);
+            if (!student) {
+                return;
+            }
+
+            if (room.requireName && !student.name) {
+                return;
+            }
+
+            if (room.totalExercises > 0 && student.completedExercises >= room.totalExercises) {
+                return;
+            }
+
+            student.completedExercises = getSafeCompletedExercises(student.completedExercises) + 1;
+            syncStudentReadyWithExercises(student, room);
+            student.updatedAt = Date.now();
+            broadcastState(roomCode);
+        });
+
+        socket.on("student:undo-exercise", () => {
+            const student = room.students.get(sessionId);
+            if (!student) {
+                return;
+            }
+
+            if (student.completedExercises <= 0) {
+                return;
+            }
+
+            student.completedExercises = getSafeCompletedExercises(student.completedExercises) - 1;
+            syncStudentReadyWithExercises(student, room);
+            student.updatedAt = Date.now();
+            broadcastState(roomCode);
+        });
+
+        socket.on("student:set-name", (payload) => {
+            const student = room.students.get(sessionId);
+            if (!student) {
+                return;
+            }
+
+            const name = normalizeStudentName(payload && payload.name);
+            if (!name) {
+                return;
+            }
+
+            student.name = name;
             student.updatedAt = Date.now();
             broadcastState(roomCode);
         });

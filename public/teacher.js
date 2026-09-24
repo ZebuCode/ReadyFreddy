@@ -5,7 +5,15 @@ const teacherStatus = document.getElementById("teacherStatus");
 const readyCount = document.getElementById("readyCount");
 const studentList = document.getElementById("studentList");
 const resetBtn = document.getElementById("resetBtn");
+const configureExercisesBtn = document.getElementById("configureExercisesBtn");
+const exerciseAmountInput = document.getElementById("exerciseAmount");
+const requireNameCheckbox = document.getElementById("requireNameCheckbox");
+const removeExerciseBtn = document.getElementById("removeExerciseBtn");
+const cancelExerciseBtn = document.getElementById("cancelExerciseBtn");
+const saveExerciseBtn = document.getElementById("saveExerciseBtn");
+const exerciseSummary = document.getElementById("exerciseSummary");
 const resetModal = document.getElementById("resetModal");
+const exerciseModal = document.getElementById("exerciseModal");
 const cancelResetBtn = document.getElementById("cancelResetBtn");
 const confirmResetBtn = document.getElementById("confirmResetBtn");
 
@@ -20,8 +28,37 @@ function closeResetModal() {
     resetModal.classList.add("hidden");
 }
 
+function openExerciseModal() {
+    exerciseModal.classList.remove("hidden");
+    exerciseAmountInput.focus();
+}
+
+function closeExerciseModal() {
+    exerciseModal.classList.add("hidden");
+}
+
+function formatExerciseProgress(done, total) {
+    if (total > 0) {
+        return `${done} / ${total}`;
+    }
+
+    return `${done}`;
+}
+
 function renderState(state) {
+    const totalExercises = Number(state.totalExercises || 0);
+    const hasExercises = totalExercises > 0;
+
     readyCount.textContent = `${state.readyCount} / ${state.totalCount}`;
+    exerciseAmountInput.value = String(totalExercises);
+    requireNameCheckbox.checked = Boolean(state.requireName);
+
+    if (hasExercises) {
+        exerciseSummary.textContent = `${state.completedExercises} / ${Math.max(0, totalExercises * state.totalCount)} exercises done`;
+        exerciseSummary.classList.remove("hidden");
+    } else {
+        exerciseSummary.classList.add("hidden");
+    }
 
     studentList.innerHTML = "";
 
@@ -36,14 +73,26 @@ function renderState(state) {
         const item = document.createElement("li");
 
         const label = document.createElement("span");
-        label.textContent = `Student ${index + 1}${student.connected ? "" : " (offline)"}`;
+        const name = String(student.name || "").trim();
+        label.textContent = `${name || `Student ${index + 1}`}${student.connected ? "" : " (offline)"}`;
+
+        const right = document.createElement("div");
+        right.className = "student-list-right";
 
         const badge = document.createElement("span");
         badge.className = `badge ${student.ready ? "ready" : "not-ready"}`;
         badge.textContent = student.ready ? "Ready" : "Not ready";
 
+        if (hasExercises) {
+            const progress = document.createElement("span");
+            progress.className = "badge progress";
+            progress.textContent = `${formatExerciseProgress(student.completedExercises || 0, totalExercises)} exercises`;
+            right.appendChild(progress);
+        }
+
+        right.appendChild(badge);
         item.appendChild(label);
-        item.appendChild(badge);
+        item.appendChild(right);
         studentList.appendChild(item);
     });
 }
@@ -86,9 +135,33 @@ function initConnection() {
 
         openResetModal();
     };
+
+    configureExercisesBtn.onclick = () => {
+        if (!socket || !socket.connected) {
+            return;
+        }
+
+        openExerciseModal();
+    };
+
+    saveExerciseBtn.onclick = () => {
+        if (!socket || !socket.connected) {
+            return;
+        }
+
+        const amount = Math.max(0, Math.floor(Number(exerciseAmountInput.value) || 0));
+        const requireName = Boolean(requireNameCheckbox.checked);
+        socket.emit("teacher:set-total-exercises", { amount });
+        socket.emit("teacher:set-require-name", { requireName });
+        closeExerciseModal();
+    };
 }
 
 cancelResetBtn.addEventListener("click", closeResetModal);
+cancelExerciseBtn.addEventListener("click", closeExerciseModal);
+removeExerciseBtn.addEventListener("click", () => {
+    exerciseAmountInput.value = "0";
+});
 
 confirmResetBtn.addEventListener("click", () => {
     if (!socket || !socket.connected) {
@@ -106,9 +179,20 @@ resetModal.addEventListener("click", (event) => {
     }
 });
 
+exerciseModal.addEventListener("click", (event) => {
+    if (event.target === exerciseModal) {
+        closeExerciseModal();
+    }
+});
+
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !resetModal.classList.contains("hidden")) {
         closeResetModal();
+        return;
+    }
+
+    if (event.key === "Escape" && !exerciseModal.classList.contains("hidden")) {
+        closeExerciseModal();
     }
 });
 
