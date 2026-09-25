@@ -409,10 +409,37 @@ p {
   font-family: "Baloo 2", "Nunito", sans-serif;
   text-shadow: 0 2px 0 #ffffff;
   cursor: pointer;
+  position: relative;
+  display: inline-block;
 }
 
 .room-code:hover {
   text-decoration: underline;
+}
+
+.cursor-tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translate(12px, 14px);
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+  color: #fff;
+  background: var(--brand-blue);
+  border-radius: 8px;
+  padding: 0.3rem 0.45rem;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 1100;
+  transition: opacity 120ms ease;
+}
+
+.cursor-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
 }
 
 .summary-row {

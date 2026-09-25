@@ -194,7 +194,7 @@ io.on("connection", (socket) => {
             rooms.set(roomCode, createRoom());
         }
 
-        const room = rooms.get(roomCode);
+        let room = rooms.get(roomCode);
         room.teacherSockets.add(socket.id);
         touchRoom(room);
 
@@ -203,14 +203,33 @@ io.on("connection", (socket) => {
         socket.emit("teacher:room-assigned", roomCode);
         socket.emit("state:update", buildState(roomCode));
 
-        socket.on("teacher:reset", () => {
-            room.students.forEach((student) => {
-                student.ready = false;
-                student.needsHelp = false;
-                student.completedExercises = 0;
-                student.updatedAt = Date.now();
+        socket.on("teacher:new-session", () => {
+            const oldRoomCode = roomCode;
+            const oldRoom = room;
+
+            oldRoom.teacherSockets.delete(socket.id);
+
+            oldRoom.connectedStudentSockets.forEach((studentSocketId) => {
+                const studentSocket = io.sockets.sockets.get(studentSocketId);
+                if (studentSocket) {
+                    studentSocket.emit("auth:error", "Session ended. Ask your teacher for the new class code.");
+                    studentSocket.disconnect(true);
+                }
             });
-            broadcastState(roomCode);
+
+            rooms.delete(oldRoomCode);
+            socket.leave(`room:${oldRoomCode}`);
+
+            roomCode = generateRoomCode();
+            room = createRoom();
+            room.teacherSockets.add(socket.id);
+            touchRoom(room);
+            rooms.set(roomCode, room);
+
+            socket.data.roomCode = roomCode;
+            socket.join(`room:${roomCode}`);
+            socket.emit("teacher:room-assigned", roomCode);
+            socket.emit("state:update", buildState(roomCode));
         });
 
         socket.on("teacher:set-total-exercises", (payload) => {

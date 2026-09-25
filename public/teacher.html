@@ -14,12 +14,12 @@
           <h1 class="brand-title teacher-title">Teacher dashboard</h1>
           <div class="teacher-header-actions">
             <button id="configureExercisesBtn" class="btn ghost" type="button">Configure Session</button>
-            <button id="resetBtn" class="btn ghost" type="button">Reset Session</button>
+            <button id="resetBtn" class="btn ghost" type="button">New Session</button>
           </div>
         </div>
       </div>
       <p class="small muted">Share this code with students:</p>
-      <p id="roomCode" class="room-code">------</p>
+      <p id="roomCode" class="room-code" data-tooltip="Click to copy" tabindex="0">------</p>
       <p id="teacherStatus" class="small muted">Connecting...</p>
 
       <div class="summary-row">
@@ -36,11 +36,11 @@
 
     <div id="resetModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="resetModalTitle">
       <div class="modal-card">
-        <h2 id="resetModalTitle">Reset all statuses?</h2>
-        <p class="small muted">This will mark every student as not ready.</p>
+        <h2 id="resetModalTitle">Start a new session?</h2>
+        <p class="small muted">This will end the current session and generate a new class code.</p>
         <div class="modal-actions">
           <button id="cancelResetBtn" class="btn ghost" type="button">Cancel</button>
-          <button id="confirmResetBtn" class="btn" type="button">Confirm reset</button>
+          <button id="confirmResetBtn" class="btn" type="button">Start new session</button>
         </div>
       </div>
     </div>

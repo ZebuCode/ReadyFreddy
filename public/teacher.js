@@ -20,6 +20,43 @@ const cancelResetBtn = document.getElementById("cancelResetBtn");
 const confirmResetBtn = document.getElementById("confirmResetBtn");
 
 let socket;
+let roomCodeTooltip;
+
+function ensureRoomCodeTooltip() {
+    if (roomCodeTooltip) {
+        return roomCodeTooltip;
+    }
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "cursor-tooltip";
+    tooltip.textContent = roomCodeText.dataset.tooltip || "Click to copy";
+    document.body.appendChild(tooltip);
+    roomCodeTooltip = tooltip;
+    return tooltip;
+}
+
+function showRoomCodeTooltip(event) {
+    const tooltip = ensureRoomCodeTooltip();
+    tooltip.classList.add("visible");
+    moveRoomCodeTooltip(event);
+}
+
+function moveRoomCodeTooltip(event) {
+    if (!roomCodeTooltip) {
+        return;
+    }
+
+    roomCodeTooltip.style.left = `${event.clientX}px`;
+    roomCodeTooltip.style.top = `${event.clientY}px`;
+}
+
+function hideRoomCodeTooltip() {
+    if (!roomCodeTooltip) {
+        return;
+    }
+
+    roomCodeTooltip.classList.remove("visible");
+}
 
 async function copyRoomCodeToClipboard() {
     const roomCode = String(roomCodeText.textContent || "").trim();
@@ -216,7 +253,7 @@ confirmResetBtn.addEventListener("click", () => {
         return;
     }
 
-    socket.emit("teacher:reset");
+    socket.emit("teacher:new-session");
     closeResetModal();
 });
 
@@ -245,6 +282,22 @@ document.addEventListener("keydown", (event) => {
 
 roomCodeText.addEventListener("click", () => {
     copyRoomCodeToClipboard();
+});
+
+roomCodeText.addEventListener("mouseenter", (event) => {
+    showRoomCodeTooltip(event);
+});
+
+roomCodeText.addEventListener("mousemove", (event) => {
+    moveRoomCodeTooltip(event);
+});
+
+roomCodeText.addEventListener("mouseleave", () => {
+    hideRoomCodeTooltip();
+});
+
+roomCodeText.addEventListener("blur", () => {
+    hideRoomCodeTooltip();
 });
 
 initConnection();
