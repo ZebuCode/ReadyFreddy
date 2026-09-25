@@ -408,6 +408,11 @@ p {
   color: var(--brand-blue);
   font-family: "Baloo 2", "Nunito", sans-serif;
   text-shadow: 0 2px 0 #ffffff;
+  cursor: pointer;
+}
+
+.room-code:hover {
+  text-decoration: underline;
 }
 
 .summary-row {

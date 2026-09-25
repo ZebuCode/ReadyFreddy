@@ -21,6 +21,30 @@ const confirmResetBtn = document.getElementById("confirmResetBtn");
 
 let socket;
 
+async function copyRoomCodeToClipboard() {
+    const roomCode = String(roomCodeText.textContent || "").trim();
+    if (!roomCode || roomCode === "------") {
+        return;
+    }
+
+    try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            await navigator.clipboard.writeText(roomCode);
+        } else {
+            const tempInput = document.createElement("input");
+            tempInput.value = roomCode;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+        }
+
+        teacherStatus.textContent = `Copied class code: ${roomCode}`;
+    } catch {
+        teacherStatus.textContent = "Could not copy class code";
+    }
+}
+
 function syncHelpCheckboxAvailability() {
     const requireName = Boolean(requireNameCheckbox.checked);
 
@@ -218,6 +242,10 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !exerciseModal.classList.contains("hidden")) {
         closeExerciseModal();
     }
+});
+
+roomCodeText.addEventListener("click", () => {
+    copyRoomCodeToClipboard();
 });
 
 initConnection();
