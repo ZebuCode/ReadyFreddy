@@ -20,16 +20,21 @@
         <p class="small">Class code: <strong id="activeRoomCode">------</strong></p>
         <p id="exerciseProgressText" class="exercise-step-label hidden">0 / 0</p>
 
-        <label id="readyToggleRow" class="ready-checkbox-row" for="readyCheckbox">
-          <input id="readyCheckbox" class="ready-checkbox-input" type="checkbox" />
-          <span class="ready-checkbox-visual" aria-hidden="true">
-            <svg class="ready-check-svg" viewBox="0 0 56 56" focusable="false" aria-hidden="true">
-              <path class="ready-check-base" d="M11 29 L21 39 L45 15"></path>
-              <path class="ready-check-draw" d="M11 29 L21 39 L45 15"></path>
-            </svg>
-          </span>
-          <span class="ready-checkbox-label">Ready</span>
-        </label>
+        <div class="ready-actions-row">
+          <label id="readyToggleRow" class="ready-checkbox-row" for="readyCheckbox">
+            <input id="readyCheckbox" class="ready-checkbox-input" type="checkbox" />
+            <span class="ready-checkbox-visual" aria-hidden="true">
+              <svg class="ready-check-svg" viewBox="0 0 56 56" focusable="false" aria-hidden="true">
+                <path class="ready-check-base" d="M11 29 L21 39 L45 15"></path>
+                <path class="ready-check-draw" d="M11 29 L21 39 L45 15"></path>
+              </svg>
+            </span>
+            <span class="ready-checkbox-label">Ready</span>
+          </label>
+          <button id="helpBtn" class="btn help-btn" type="button" aria-label="Need help" title="Need help" aria-pressed="false">
+            <img src="/images/help.png" alt="" class="help-btn-icon" />
+          </button>
+        </div>
         <button id="readyButton" class="ready-btn ready hidden" type="button">Next excercise</button>
         <button id="previousExerciseBtn" class="link-btn hidden" type="button">previous excercise</button>
 

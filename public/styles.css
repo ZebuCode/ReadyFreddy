@@ -108,6 +108,44 @@ p {
   border-color: #9ec0f6;
 }
 
+.btn.help-btn {
+  background: transparent;
+  border: 5px solid transparent;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  min-width: 0;
+  line-height: 0;
+  width: 66px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  transition: none;
+}
+
+.btn.help-btn:hover {
+  transform: none;
+  filter: none;
+}
+
+.btn.help-btn.active {
+  background: var(--brand-yellow);
+  border-color: var(--brand-yellow);
+}
+
+.help-btn-icon {
+  width: 46px;
+  height: 46px;
+  display: block;
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.btn.help-btn.active .help-btn-icon {
+  filter: none;
+  opacity: 1;
+}
+
 .brand-logo {
   width: min(100%, 340px);
   height: auto;
@@ -196,8 +234,16 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 0.8rem;
-  margin: 1rem auto 0.65rem;
+  margin: 0;
   cursor: pointer;
+}
+
+.ready-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1rem auto 0.65rem;
 }
 
 .ready-checkbox-input {
@@ -424,6 +470,14 @@ p {
   height: 1rem;
 }
 
+.require-name-row.disabled-option {
+  opacity: 0.5;
+}
+
+.require-name-row.disabled-option span {
+  color: var(--muted);
+}
+
 .name-entry {
   display: grid;
   gap: 0.55rem;
@@ -498,6 +552,12 @@ p {
   background: #eff5ff;
 }
 
+.badge.help {
+  color: #9d1010;
+  border-color: #f0a5a5;
+  background: #ffe9e9;
+}
+
 .error {
   min-height: 1.2rem;
   color: #b42318;
@@ -535,7 +595,7 @@ p {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 @media (max-width: 640px) {
@@ -591,5 +651,9 @@ p {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.4rem;
+  }
+
+  .ready-actions-row {
+    flex-wrap: wrap;
   }
 }

@@ -19,6 +19,7 @@ function createRoom() {
         teacherSockets: new Set(),
         totalExercises: 0,
         requireName: false,
+        enableHelpButton: false,
     };
 }
 
@@ -84,6 +85,7 @@ function buildState(roomCode) {
             readyCount: 0,
             totalExercises: 0,
             requireName: false,
+            enableHelpButton: false,
             completedExercises: 0,
             updatedAt: Date.now(),
         };
@@ -104,6 +106,7 @@ function buildState(roomCode) {
             id: student.id,
             name: student.name,
             ready: derivedReady,
+            needsHelp: room.enableHelpButton ? Boolean(student.needsHelp) : false,
             completedExercises,
             connected: room.connectedStudentSockets.has(student.id),
             updatedAt: student.updatedAt,
@@ -122,6 +125,7 @@ function buildState(roomCode) {
         readyCount,
         totalExercises: room.totalExercises,
         requireName: room.requireName,
+        enableHelpButton: Boolean(room.enableHelpButton),
         completedExercises,
         updatedAt: Date.now(),
     };
@@ -175,6 +179,7 @@ io.on("connection", (socket) => {
         socket.on("teacher:reset", () => {
             room.students.forEach((student) => {
                 student.ready = false;
+                student.needsHelp = false;
                 student.completedExercises = 0;
                 student.updatedAt = Date.now();
             });
@@ -216,6 +221,22 @@ io.on("connection", (socket) => {
             broadcastState(roomCode);
         });
 
+        socket.on("teacher:set-enable-help-button", (payload) => {
+            const enableHelpButton = Boolean(payload && payload.enableHelpButton);
+            room.enableHelpButton = enableHelpButton;
+
+            if (!enableHelpButton) {
+                room.students.forEach((student) => {
+                    if (student.needsHelp) {
+                        student.needsHelp = false;
+                        student.updatedAt = Date.now();
+                    }
+                });
+            }
+
+            broadcastState(roomCode);
+        });
+
         socket.on("disconnect", () => {
             room.teacherSockets.delete(socket.id);
         });
@@ -251,6 +272,7 @@ io.on("connection", (socket) => {
                 id: sessionId,
                 name: incomingName,
                 ready: false,
+                needsHelp: false,
                 completedExercises: 0,
                 updatedAt: Date.now(),
             });
@@ -283,6 +305,23 @@ io.on("connection", (socket) => {
             }
 
             student.ready = Boolean(payload && payload.ready);
+            student.updatedAt = Date.now();
+            broadcastState(roomCode);
+        });
+
+        socket.on("student:set-help", (payload) => {
+            const student = room.students.get(sessionId);
+            if (!student) {
+                return;
+            }
+
+            if (!room.enableHelpButton) {
+                student.needsHelp = false;
+                broadcastState(roomCode);
+                return;
+            }
+
+            student.needsHelp = Boolean(payload && payload.needsHelp);
             student.updatedAt = Date.now();
             broadcastState(roomCode);
         });

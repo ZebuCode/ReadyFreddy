@@ -8,6 +8,8 @@ const resetBtn = document.getElementById("resetBtn");
 const configureExercisesBtn = document.getElementById("configureExercisesBtn");
 const exerciseAmountInput = document.getElementById("exerciseAmount");
 const requireNameCheckbox = document.getElementById("requireNameCheckbox");
+const enableHelpButtonCheckbox = document.getElementById("enableHelpButtonCheckbox");
+const enableHelpButtonRow = enableHelpButtonCheckbox.closest("label");
 const removeExerciseBtn = document.getElementById("removeExerciseBtn");
 const cancelExerciseBtn = document.getElementById("cancelExerciseBtn");
 const saveExerciseBtn = document.getElementById("saveExerciseBtn");
@@ -18,6 +20,17 @@ const cancelResetBtn = document.getElementById("cancelResetBtn");
 const confirmResetBtn = document.getElementById("confirmResetBtn");
 
 let socket;
+
+function syncHelpCheckboxAvailability() {
+    const requireName = Boolean(requireNameCheckbox.checked);
+
+    enableHelpButtonCheckbox.disabled = !requireName;
+    enableHelpButtonRow.classList.toggle("disabled-option", !requireName);
+
+    if (!requireName) {
+        enableHelpButtonCheckbox.checked = false;
+    }
+}
 
 function openResetModal() {
     resetModal.classList.remove("hidden");
@@ -52,6 +65,8 @@ function renderState(state) {
     readyCount.textContent = `${state.readyCount} / ${state.totalCount}`;
     exerciseAmountInput.value = String(totalExercises);
     requireNameCheckbox.checked = Boolean(state.requireName);
+    enableHelpButtonCheckbox.checked = Boolean(state.enableHelpButton);
+    syncHelpCheckboxAvailability();
 
     if (hasExercises) {
         exerciseSummary.textContent = `${state.completedExercises} / ${Math.max(0, totalExercises * state.totalCount)} exercises done`;
@@ -80,8 +95,13 @@ function renderState(state) {
         right.className = "student-list-right";
 
         const badge = document.createElement("span");
-        badge.className = `badge ${student.ready ? "ready" : "not-ready"}`;
-        badge.textContent = student.ready ? "Ready" : "Not ready";
+        if (student.needsHelp) {
+            badge.className = "badge help";
+            badge.textContent = "needs help";
+        } else {
+            badge.className = `badge ${student.ready ? "ready" : "not-ready"}`;
+            badge.textContent = student.ready ? "Ready" : "Not ready";
+        }
 
         if (hasExercises) {
             const progress = document.createElement("span");
@@ -151,11 +171,15 @@ function initConnection() {
 
         const amount = Math.max(0, Math.floor(Number(exerciseAmountInput.value) || 0));
         const requireName = Boolean(requireNameCheckbox.checked);
+        const enableHelpButton = requireName && Boolean(enableHelpButtonCheckbox.checked);
         socket.emit("teacher:set-total-exercises", { amount });
         socket.emit("teacher:set-require-name", { requireName });
+        socket.emit("teacher:set-enable-help-button", { enableHelpButton });
         closeExerciseModal();
     };
 }
+
+    requireNameCheckbox.addEventListener("change", syncHelpCheckboxAvailability);
 
 cancelResetBtn.addEventListener("click", closeResetModal);
 cancelExerciseBtn.addEventListener("click", closeExerciseModal);

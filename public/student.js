@@ -21,6 +21,7 @@ const readyCheckbox = document.getElementById("readyCheckbox");
 const readyCheckboxLabel = document.querySelector(".ready-checkbox-label");
 const button = document.getElementById("readyButton");
 const previousExerciseBtn = document.getElementById("previousExerciseBtn");
+const helpBtn = document.getElementById("helpBtn");
 const statusText = document.getElementById("statusText");
 const counterText = document.getElementById("counterText");
 const exerciseProgressText = document.getElementById("exerciseProgressText");
@@ -32,8 +33,10 @@ const nameError = document.getElementById("nameError");
 let currentExerciseDone = 0;
 let currentTotalExercises = 0;
 let requireName = false;
+let enableHelpButton = false;
 let hasName = false;
 let hasSubmittedNameThisVisit = false;
+let currentNeedsHelp = false;
 let isCompletingExercise = false;
 let completeExerciseTimer = null;
 
@@ -63,10 +66,15 @@ function closeNameModal() {
     nameModal.classList.add("hidden");
 }
 
+function renderClassCode() {
+    const code = roomCode || "------";
+    activeRoomCode.textContent = studentName ? `${code} - ${studentName}` : code;
+}
+
 function showControls() {
     joinSection.classList.add("hidden");
     studentControls.classList.remove("hidden");
-    activeRoomCode.textContent = roomCode || "------";
+    renderClassCode();
 }
 
 function showJoin() {
@@ -75,6 +83,12 @@ function showJoin() {
 }
 
 function renderButton() {
+    helpBtn.classList.toggle("hidden", !enableHelpButton);
+    helpBtn.classList.toggle("active", currentNeedsHelp);
+    helpBtn.setAttribute("aria-pressed", String(currentNeedsHelp));
+    helpBtn.setAttribute("aria-label", currentNeedsHelp ? "Needs help active" : "Need help");
+    helpBtn.title = currentNeedsHelp ? "Needs help active" : "Need help";
+
     if (requireName && !hasName) {
         readyToggleRow.classList.remove("completed");
         readyToggleRow.classList.remove("hidden");
@@ -87,7 +101,15 @@ function renderButton() {
         previousExerciseBtn.classList.add("hidden");
         previousExerciseBtn.classList.remove("reserved-space");
         statusText.textContent = "Set your name to continue";
+        helpBtn.disabled = true;
         return;
+    }
+
+    helpBtn.disabled = false;
+
+    if (!enableHelpButton) {
+        helpBtn.disabled = true;
+        currentNeedsHelp = false;
     }
 
     if (currentTotalExercises > 0) {
@@ -95,6 +117,7 @@ function renderButton() {
         const nextExerciseNumber = Math.min(currentExerciseDone + 1, currentTotalExercises);
         const showAnimatedCheck = isCompletingExercise && !allDone;
         const showReadyState = allDone || showAnimatedCheck;
+        const helpSuffix = currentNeedsHelp ? ", you asked for help" : "";
 
         readyToggleRow.classList.toggle("completed", allDone);
         readyToggleRow.classList.remove("hidden");
@@ -105,7 +128,7 @@ function renderButton() {
 
         button.classList.add("hidden");
         button.disabled = true;
-        statusText.textContent = `Completed ${currentExerciseDone} / ${currentTotalExercises} exercises`;
+        statusText.textContent = `Completed ${currentExerciseDone} / ${currentTotalExercises} exercises${helpSuffix}`;
         previousExerciseBtn.classList.remove("hidden");
         if (currentExerciseDone > 0) {
             previousExerciseBtn.classList.remove("reserved-space");
@@ -126,7 +149,10 @@ function renderButton() {
     readyCheckboxLabel.classList.toggle("checked", isReadyChecked);
     button.classList.add("hidden");
     button.disabled = false;
-    statusText.textContent = currentReady ? "You are marked ready" : "You are marked not ready";
+    const helpSuffix = currentNeedsHelp ? ", you asked for help" : "";
+    statusText.textContent = currentReady
+        ? `You are marked ready${helpSuffix}`
+        : `You are marked not ready${helpSuffix}`;
     previousExerciseBtn.classList.add("hidden");
     previousExerciseBtn.classList.remove("reserved-space");
 }
@@ -196,6 +222,20 @@ previousExerciseBtn.addEventListener("click", () => {
     socket.emit("student:undo-exercise");
 });
 
+helpBtn.addEventListener("click", () => {
+    if (!socket || !socket.connected) {
+        return;
+    }
+
+    if (!enableHelpButton) {
+        return;
+    }
+
+    currentNeedsHelp = !currentNeedsHelp;
+    renderButton();
+    socket.emit("student:set-help", { needsHelp: currentNeedsHelp });
+});
+
 function connectStudent() {
     joinError.textContent = "";
     roomCode = normalizeRoomCode(roomCodeInput.value);
@@ -241,6 +281,7 @@ function connectStudent() {
     socket.on("state:update", (state) => {
         counterText.textContent = `${state.readyCount} / ${state.totalCount} students are ready`;
         requireName = Boolean(state.requireName);
+        enableHelpButton = Boolean(state.enableHelpButton);
 
         if (!sessionId) {
             return;
@@ -271,7 +312,10 @@ function connectStudent() {
             closeNameModal();
         }
 
+        renderClassCode();
+
         currentReady = Boolean(me.ready);
+        currentNeedsHelp = enableHelpButton ? Boolean(me.needsHelp) : false;
         currentExerciseDone = Number(me.completedExercises || 0);
         currentTotalExercises = Number(state.totalExercises || 0);
 
@@ -316,6 +360,7 @@ saveNameBtn.addEventListener("click", () => {
     localStorage.setItem(NAME_KEY, name);
     nameError.textContent = "";
     closeNameModal();
+    renderClassCode();
     renderButton();
 
     if (socket && socket.connected) {
