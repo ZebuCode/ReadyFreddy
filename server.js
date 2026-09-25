@@ -5,6 +5,8 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 const PORT = process.env.PORT || 3000;
+const ROOM_INACTIVITY_MS = 24 * 60 * 60 * 1000;
+const ROOM_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 const app = express();
 const server = http.createServer(app);
@@ -20,7 +22,29 @@ function createRoom() {
         totalExercises: 0,
         requireName: false,
         enableHelpButton: false,
+        lastActivityAt: Date.now(),
     };
+}
+
+function touchRoom(room) {
+    if (!room) {
+        return;
+    }
+
+    room.lastActivityAt = Date.now();
+}
+
+function cleanupInactiveRooms() {
+    const now = Date.now();
+
+    rooms.forEach((room, roomCode) => {
+        const hasActiveConnections = room.teacherSockets.size > 0 || room.connectedStudentSockets.size > 0;
+        const idleFor = now - Number(room.lastActivityAt || 0);
+
+        if (!hasActiveConnections && idleFor >= ROOM_INACTIVITY_MS) {
+            rooms.delete(roomCode);
+        }
+    });
 }
 
 function normalizeStudentName(input) {
@@ -132,6 +156,8 @@ function buildState(roomCode) {
 }
 
 function broadcastState(roomCode) {
+    const room = rooms.get(roomCode);
+    touchRoom(room);
     io.to(`room:${roomCode}`).emit("state:update", buildState(roomCode));
 }
 
@@ -170,6 +196,7 @@ io.on("connection", (socket) => {
 
         const room = rooms.get(roomCode);
         room.teacherSockets.add(socket.id);
+        touchRoom(room);
 
         socket.data.roomCode = roomCode;
         socket.join(`room:${roomCode}`);
@@ -239,6 +266,7 @@ io.on("connection", (socket) => {
 
         socket.on("disconnect", () => {
             room.teacherSockets.delete(socket.id);
+            touchRoom(room);
         });
 
         return;
@@ -256,6 +284,7 @@ io.on("connection", (socket) => {
         const room = rooms.get(roomCode);
         let sessionId = socket.handshake.auth.sessionId;
         const incomingName = normalizeStudentName(socket.handshake.auth.name);
+        touchRoom(room);
 
         if (!sessionId || typeof sessionId !== "string") {
             sessionId = randomUUID();
@@ -380,6 +409,7 @@ io.on("connection", (socket) => {
 
         socket.on("disconnect", () => {
             room.connectedStudentSockets.delete(sessionId);
+            touchRoom(room);
             broadcastState(roomCode);
         });
 
@@ -389,6 +419,8 @@ io.on("connection", (socket) => {
     socket.emit("auth:error", "Unknown role");
     socket.disconnect(true);
 });
+
+setInterval(cleanupInactiveRooms, ROOM_CLEANUP_INTERVAL_MS);
 
 server.listen(PORT, () => {
     console.log(`ReadyFreddy running on http://localhost:${PORT}`);

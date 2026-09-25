@@ -39,9 +39,8 @@ async function copyRoomCodeToClipboard() {
             document.body.removeChild(tempInput);
         }
 
-        teacherStatus.textContent = `Copied class code: ${roomCode}`;
     } catch {
-        teacherStatus.textContent = "Could not copy class code";
+        // Keep copy interaction silent if clipboard access fails.
     }
 }
 
