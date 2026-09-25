@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "build": "npm ci",
-    "serve": "node index.js",
+    "serve": "node server.js",
     "start": "node server.js"
   },
   "dependencies": {
