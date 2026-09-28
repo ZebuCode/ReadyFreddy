@@ -1,11 +1,13 @@
 const SESSION_KEY = "readyfreddy.sessionId";
 const ROOM_CODE_KEY = "readyfreddy.roomCode";
 const NAME_KEY = "readyfreddy.studentName";
+const SESSION_BY_ROOM_KEY = "readyfreddy.sessionByRoom";
+const NAME_BY_ROOM_KEY = "readyfreddy.studentNameByRoom";
 const CHECKMARK_DRAW_MS = 260;
 
-let sessionId = localStorage.getItem(SESSION_KEY) || "";
 let roomCode = localStorage.getItem(ROOM_CODE_KEY) || "";
-let studentName = localStorage.getItem(NAME_KEY) || "";
+let sessionId = "";
+let studentName = "";
 let currentReady = false;
 let socket;
 
@@ -53,6 +55,66 @@ function normalizeRoomCode(value) {
 
 function normalizeName(value) {
     return String(value || "").trim().slice(0, 40);
+}
+
+function readRoomScopedMap(key) {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+        return {};
+    }
+
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function writeRoomScopedMap(key, map) {
+    localStorage.setItem(key, JSON.stringify(map));
+}
+
+function getStoredSessionForRoom(code) {
+    const normalizedCode = normalizeRoomCode(code);
+    if (!normalizedCode) {
+        return "";
+    }
+
+    const sessions = readRoomScopedMap(SESSION_BY_ROOM_KEY);
+    return String(sessions[normalizedCode] || "");
+}
+
+function setStoredSessionForRoom(code, id) {
+    const normalizedCode = normalizeRoomCode(code);
+    if (!normalizedCode) {
+        return;
+    }
+
+    const sessions = readRoomScopedMap(SESSION_BY_ROOM_KEY);
+    sessions[normalizedCode] = String(id || "");
+    writeRoomScopedMap(SESSION_BY_ROOM_KEY, sessions);
+}
+
+function getStoredNameForRoom(code) {
+    const normalizedCode = normalizeRoomCode(code);
+    if (!normalizedCode) {
+        return "";
+    }
+
+    const names = readRoomScopedMap(NAME_BY_ROOM_KEY);
+    return normalizeName(names[normalizedCode]);
+}
+
+function setStoredNameForRoom(code, name) {
+    const normalizedCode = normalizeRoomCode(code);
+    if (!normalizedCode) {
+        return;
+    }
+
+    const names = readRoomScopedMap(NAME_BY_ROOM_KEY);
+    names[normalizedCode] = normalizeName(name);
+    writeRoomScopedMap(NAME_BY_ROOM_KEY, names);
 }
 
 function openNameModal() {
@@ -247,6 +309,9 @@ function connectStudent() {
     }
 
     roomCodeInput.value = roomCode;
+    sessionId = getStoredSessionForRoom(roomCode) || localStorage.getItem(SESSION_KEY) || "";
+    studentName = getStoredNameForRoom(roomCode) || localStorage.getItem(NAME_KEY) || "";
+    renderClassCode();
 
     if (socket) {
         socket.disconnect();
@@ -257,7 +322,7 @@ function connectStudent() {
             role: "student",
             sessionId,
             roomCode,
-            name: "",
+            name: studentName,
         },
     });
 
@@ -276,6 +341,7 @@ function connectStudent() {
     socket.on("session:assigned", (id) => {
         sessionId = id;
         localStorage.setItem(SESSION_KEY, id);
+        setStoredSessionForRoom(roomCode, id);
     });
 
     socket.on("state:update", (state) => {
@@ -294,21 +360,19 @@ function connectStudent() {
 
         const serverName = normalizeName(me.name);
 
-        if (requireName) {
-            if (!hasSubmittedNameThisVisit) {
-                hasName = false;
-                openNameModal();
-            } else {
-                studentName = serverName;
-                hasName = Boolean(serverName);
-                if (hasName) {
-                    localStorage.setItem(NAME_KEY, studentName);
-                    closeNameModal();
-                }
-            }
-        } else {
+        if (serverName) {
             studentName = serverName;
-            hasName = Boolean(serverName);
+            hasName = true;
+            hasSubmittedNameThisVisit = true;
+            localStorage.setItem(NAME_KEY, studentName);
+            setStoredNameForRoom(roomCode, studentName);
+            closeNameModal();
+        } else if (requireName) {
+            hasName = false;
+            openNameModal();
+        } else {
+            studentName = "";
+            hasName = false;
             closeNameModal();
         }
 
@@ -358,6 +422,7 @@ saveNameBtn.addEventListener("click", () => {
     hasName = true;
     studentName = name;
     localStorage.setItem(NAME_KEY, name);
+    setStoredNameForRoom(roomCode, name);
     nameError.textContent = "";
     closeNameModal();
     renderClassCode();
@@ -383,6 +448,8 @@ roomCodeInput.addEventListener("keydown", (event) => {
 
 if (roomCode) {
     roomCodeInput.value = roomCode;
+    sessionId = getStoredSessionForRoom(roomCode) || localStorage.getItem(SESSION_KEY) || "";
+    studentName = getStoredNameForRoom(roomCode) || localStorage.getItem(NAME_KEY) || "";
 }
 
 renderButton();
