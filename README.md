@@ -102,6 +102,16 @@ The teacher sees a live overview of who is ready and who is not.
   - Student view: `http://localhost:3000/student`
   - Teacher view: `http://localhost:3000/teacher`
 
+## Hosting at `/readyfreddy`
+
+ReadyFreddy can be hosted behind a reverse proxy subpath such as:
+
+- `https://tools.zebucode.com/readyfreddy`
+- `https://tools.zebucode.com/readyfreddy/student`
+- `https://tools.zebucode.com/readyfreddy/teacher`
+
+The static asset links and Socket.IO client path are subpath-aware, so proxy requests from `/readyfreddy/*` to the ReadyFreddy Node server.
+
 ## What is implemented
 
 - Anonymous student sessions (no names)

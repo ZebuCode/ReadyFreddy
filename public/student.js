@@ -42,6 +42,28 @@ let currentNeedsHelp = false;
 let isCompletingExercise = false;
 let completeExerciseTimer = null;
 
+function resolveBasePath() {
+    const pathname = String(window.location.pathname || "");
+    const normalized = pathname.replace(/\/+$/, "");
+
+    if (normalized.endsWith("/student")) {
+        return normalized.slice(0, -"/student".length) || "";
+    }
+    if (normalized.endsWith("/teacher")) {
+        return normalized.slice(0, -"/teacher".length) || "";
+    }
+    if (normalized.endsWith("/index.html")) {
+        return normalized.slice(0, -"/index.html".length) || "";
+    }
+
+    return normalized;
+}
+
+function getSocketIoPath() {
+    const basePath = resolveBasePath();
+    return `${basePath || ""}/socket.io`;
+}
+
 function clearExerciseCompletionTimer() {
     if (completeExerciseTimer) {
         clearTimeout(completeExerciseTimer);
@@ -318,6 +340,7 @@ function connectStudent() {
     }
 
     socket = io({
+        path: getSocketIoPath(),
         auth: {
             role: "student",
             sessionId,

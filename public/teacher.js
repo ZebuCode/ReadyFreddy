@@ -22,6 +22,28 @@ const confirmResetBtn = document.getElementById("confirmResetBtn");
 let socket;
 let roomCodeTooltip;
 
+function resolveBasePath() {
+    const pathname = String(window.location.pathname || "");
+    const normalized = pathname.replace(/\/+$/, "");
+
+    if (normalized.endsWith("/student")) {
+        return normalized.slice(0, -"/student".length) || "";
+    }
+    if (normalized.endsWith("/teacher")) {
+        return normalized.slice(0, -"/teacher".length) || "";
+    }
+    if (normalized.endsWith("/index.html")) {
+        return normalized.slice(0, -"/index.html".length) || "";
+    }
+
+    return normalized;
+}
+
+function getSocketIoPath() {
+    const basePath = resolveBasePath();
+    return `${basePath || ""}/socket.io`;
+}
+
 function ensureRoomCodeTooltip() {
     if (roomCodeTooltip) {
         return roomCodeTooltip;
@@ -181,6 +203,7 @@ function initConnection() {
     const rememberedCode = String(localStorage.getItem(ROOM_CODE_KEY) || "").trim().toUpperCase();
 
     socket = io({
+        path: getSocketIoPath(),
         auth: {
             role: "teacher",
             roomCode: rememberedCode,
