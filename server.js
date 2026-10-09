@@ -87,15 +87,62 @@ function getSafeCompletedExercises(value) {
     return Math.max(0, Math.floor(parsed));
 }
 
+function normalizeCompletedExerciseNumbers(value, totalExercises) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    const maxExercise = Math.max(0, Math.floor(Number(totalExercises) || 0));
+    const unique = new Set();
+
+    value.forEach((entry) => {
+        const parsed = Math.max(0, Math.floor(Number(entry) || 0));
+        if (parsed <= 0) {
+            return;
+        }
+
+        if (maxExercise > 0 && parsed > maxExercise) {
+            return;
+        }
+
+        unique.add(parsed);
+    });
+
+    return Array.from(unique).sort((a, b) => a - b);
+}
+
+function ensureStudentCompletedExerciseNumbers(student, room) {
+    if (!student) {
+        return [];
+    }
+
+    const maxExercise = room ? Math.max(0, Math.floor(Number(room.totalExercises) || 0)) : 0;
+    const hasExplicitExerciseNumbers = Array.isArray(student.completedExerciseNumbers);
+    let completedNumbers = normalizeCompletedExerciseNumbers(student.completedExerciseNumbers, maxExercise);
+
+    if (!hasExplicitExerciseNumbers && !completedNumbers.length) {
+        const count = getSafeCompletedExercises(student.completedExercises);
+        const cappedCount = maxExercise > 0 ? Math.min(count, maxExercise) : count;
+        if (cappedCount > 0) {
+            completedNumbers = Array.from({ length: cappedCount }, (_unused, index) => index + 1);
+        }
+    }
+
+    student.completedExerciseNumbers = completedNumbers;
+    student.completedExercises = completedNumbers.length;
+    return completedNumbers;
+}
+
 function syncStudentReadyWithExercises(student, room) {
     if (!student || !room) {
         return;
     }
 
-    student.completedExercises = getSafeCompletedExercises(student.completedExercises);
+    const completedNumbers = ensureStudentCompletedExerciseNumbers(student, room);
+    const completedCount = completedNumbers.length;
 
     if (room.totalExercises > 0) {
-        student.ready = student.completedExercises >= room.totalExercises;
+        student.ready = completedCount >= room.totalExercises;
     }
 }
 
@@ -116,8 +163,8 @@ function buildState(roomCode) {
     }
 
     const studentList = Array.from(room.students.values()).map((student) => {
-        const completedExercises = getSafeCompletedExercises(student.completedExercises);
-        student.completedExercises = completedExercises;
+        const completedExerciseNumbers = ensureStudentCompletedExerciseNumbers(student, room);
+        const completedExercises = completedExerciseNumbers.length;
 
         const derivedReady = room.totalExercises > 0
             ? completedExercises >= room.totalExercises
@@ -132,6 +179,7 @@ function buildState(roomCode) {
             ready: derivedReady,
             needsHelp: room.enableHelpButton ? Boolean(student.needsHelp) : false,
             completedExercises,
+            completedExerciseNumbers: completedExerciseNumbers.slice(),
             connected: room.connectedStudentSockets.has(student.id),
             updatedAt: student.updatedAt,
         };
@@ -182,6 +230,26 @@ app.get("/teacher", (_req, res) => {
     res.sendFile(path.join(__dirname, "public", "teacher.html"));
 });
 
+app.get("/embed-exercise", (_req, res) => {
+    res.sendFile(path.join(__dirname, "public", "embed-exercise.html"));
+});
+
+app.get("/embed-help", (_req, res) => {
+    res.sendFile(path.join(__dirname, "public", "embed-help.html"));
+});
+
+app.get("/embed-name", (_req, res) => {
+    res.sendFile(path.join(__dirname, "public", "embed-name.html"));
+});
+
+app.get("/exercise-test", (_req, res) => {
+    res.sendFile(path.join(__dirname, "public", "exercise-test.html"));
+});
+
+app.get("/excercise-test", (_req, res) => {
+    res.redirect("/exercise-test");
+});
+
 io.on("connection", (socket) => {
     const role = socket.handshake.auth && socket.handshake.auth.role;
 
@@ -189,7 +257,11 @@ io.on("connection", (socket) => {
         const requestedCode = normalizeRoomCode(socket.handshake.auth.roomCode);
         let roomCode = requestedCode;
 
-        if (!roomCode || !rooms.has(roomCode)) {
+        if (roomCode && !rooms.has(roomCode)) {
+            rooms.set(roomCode, createRoom());
+        }
+
+        if (!roomCode) {
             roomCode = generateRoomCode();
             rooms.set(roomCode, createRoom());
         }
@@ -202,6 +274,34 @@ io.on("connection", (socket) => {
         socket.join(`room:${roomCode}`);
         socket.emit("teacher:room-assigned", roomCode);
         socket.emit("state:update", buildState(roomCode));
+
+        function switchTeacherRoom(nextRoomCode) {
+            const normalizedNextCode = normalizeRoomCode(nextRoomCode);
+            if (!normalizedNextCode || !rooms.has(normalizedNextCode)) {
+                socket.emit("teacher:session-switch-error", "Session not found");
+                return false;
+            }
+
+            if (normalizedNextCode === roomCode) {
+                socket.emit("teacher:room-assigned", roomCode);
+                socket.emit("state:update", buildState(roomCode));
+                return true;
+            }
+
+            room.teacherSockets.delete(socket.id);
+            touchRoom(room);
+            socket.leave(`room:${roomCode}`);
+
+            roomCode = normalizedNextCode;
+            room = rooms.get(roomCode);
+            room.teacherSockets.add(socket.id);
+            touchRoom(room);
+            socket.data.roomCode = roomCode;
+            socket.join(`room:${roomCode}`);
+            socket.emit("teacher:room-assigned", roomCode);
+            socket.emit("state:update", buildState(roomCode));
+            return true;
+        }
 
         socket.on("teacher:new-session", () => {
             const oldRoomCode = roomCode;
@@ -232,6 +332,23 @@ io.on("connection", (socket) => {
             socket.emit("state:update", buildState(roomCode));
         });
 
+        socket.on("teacher:create-custom-session", () => {
+            const customRoomCode = generateRoomCode();
+            rooms.set(customRoomCode, createRoom());
+            switchTeacherRoom(customRoomCode);
+        });
+
+        socket.on("teacher:switch-session", (payload) => {
+            const targetRoomCode = normalizeRoomCode(payload && payload.roomCode);
+            const createIfMissing = Boolean(payload && payload.createIfMissing);
+
+            if (createIfMissing && targetRoomCode && !rooms.has(targetRoomCode)) {
+                rooms.set(targetRoomCode, createRoom());
+            }
+
+            switchTeacherRoom(targetRoomCode);
+        });
+
         socket.on("teacher:set-total-exercises", (payload) => {
             const amount = Number(payload && payload.amount);
             if (!Number.isFinite(amount)) {
@@ -242,9 +359,16 @@ io.on("connection", (socket) => {
 
             room.students.forEach((student) => {
                 let changed = false;
-                student.completedExercises = getSafeCompletedExercises(student.completedExercises);
-                if (student.completedExercises > room.totalExercises) {
-                    student.completedExercises = room.totalExercises;
+                const previousCompletedCount = getSafeCompletedExercises(student.completedExercises);
+                const previousCompletedNumbers = normalizeCompletedExerciseNumbers(
+                    student.completedExerciseNumbers,
+                    0
+                );
+                const completedExerciseNumbers = ensureStudentCompletedExerciseNumbers(student, room);
+                if (
+                    completedExerciseNumbers.length !== previousCompletedCount ||
+                    completedExerciseNumbers.join(",") !== previousCompletedNumbers.join(",")
+                ) {
                     changed = true;
                 }
 
@@ -280,6 +404,36 @@ io.on("connection", (socket) => {
                 });
             }
 
+            broadcastState(roomCode);
+        });
+
+        socket.on("teacher:reset-session-progress", () => {
+            room.connectedStudentSockets.forEach((studentSocketId) => {
+                const studentSocket = io.sockets.sockets.get(studentSocketId);
+                if (studentSocket) {
+                    studentSocket.emit("auth:error", "Session was reset. Please rejoin with your class code.");
+                    studentSocket.disconnect(true);
+                }
+            });
+
+            room.students.forEach((student) => {
+                const hadProgress = getSafeCompletedExercises(student.completedExercises) > 0
+                    || (Array.isArray(student.completedExerciseNumbers) && student.completedExerciseNumbers.length > 0)
+                    || Boolean(student.ready)
+                    || Boolean(student.needsHelp);
+
+                student.completedExercises = 0;
+                student.completedExerciseNumbers = [];
+                student.ready = false;
+                student.needsHelp = false;
+
+                if (hadProgress) {
+                    student.updatedAt = Date.now();
+                }
+            });
+
+            room.students.clear();
+            room.connectedStudentSockets.clear();
             broadcastState(roomCode);
         });
 
@@ -322,6 +476,7 @@ io.on("connection", (socket) => {
                 ready: false,
                 needsHelp: false,
                 completedExercises: 0,
+                completedExerciseNumbers: [],
                 updatedAt: Date.now(),
             });
         } else if (incomingName) {
@@ -384,27 +539,115 @@ io.on("connection", (socket) => {
                 return;
             }
 
-            if (room.totalExercises > 0 && student.completedExercises >= room.totalExercises) {
+            const completedExerciseNumbers = ensureStudentCompletedExerciseNumbers(student, room);
+            let nextExerciseNumber = 1;
+            while (completedExerciseNumbers.includes(nextExerciseNumber)) {
+                nextExerciseNumber += 1;
+            }
+
+            if (room.totalExercises > 0 && nextExerciseNumber > room.totalExercises) {
                 return;
             }
 
-            student.completedExercises = getSafeCompletedExercises(student.completedExercises) + 1;
+            completedExerciseNumbers.push(nextExerciseNumber);
+            completedExerciseNumbers.sort((a, b) => a - b);
+            student.completedExerciseNumbers = completedExerciseNumbers;
             syncStudentReadyWithExercises(student, room);
             student.updatedAt = Date.now();
             broadcastState(roomCode);
         });
 
-        socket.on("student:undo-exercise", () => {
+        socket.on("student:complete-to-exercise", (payload) => {
             const student = room.students.get(sessionId);
             if (!student) {
                 return;
             }
 
-            if (student.completedExercises <= 0) {
+            if (room.requireName && !student.name) {
                 return;
             }
 
-            student.completedExercises = getSafeCompletedExercises(student.completedExercises) - 1;
+            const requestedExerciseNumber = Math.max(0, Math.floor(Number(payload && payload.exerciseNumber) || 0));
+            if (requestedExerciseNumber <= 0) {
+                return;
+            }
+
+            const completedExerciseNumbers = ensureStudentCompletedExerciseNumbers(student, room);
+            const boundedExerciseNumber = room.totalExercises > 0
+                ? Math.min(requestedExerciseNumber, room.totalExercises)
+                : requestedExerciseNumber;
+
+            if (completedExerciseNumbers.includes(boundedExerciseNumber)) {
+                return;
+            }
+
+            completedExerciseNumbers.push(boundedExerciseNumber);
+            completedExerciseNumbers.sort((a, b) => a - b);
+            student.completedExerciseNumbers = completedExerciseNumbers;
+            syncStudentReadyWithExercises(student, room);
+            student.updatedAt = Date.now();
+            broadcastState(roomCode);
+        });
+
+        socket.on("student:set-completed-exercises", (payload) => {
+            const student = room.students.get(sessionId);
+            if (!student) {
+                return;
+            }
+
+            if (room.requireName && !student.name) {
+                return;
+            }
+
+            const requestedCompleted = Math.max(0, Math.floor(Number(payload && payload.completedExercises) || 0));
+            const cappedCompleted = room.totalExercises > 0
+                ? Math.min(requestedCompleted, room.totalExercises)
+                : requestedCompleted;
+            const completedExerciseNumbers = ensureStudentCompletedExerciseNumbers(student, room);
+
+            if (completedExerciseNumbers.length === cappedCompleted) {
+                return;
+            }
+
+            student.completedExerciseNumbers = Array.from({ length: cappedCompleted }, (_unused, index) => index + 1);
+            syncStudentReadyWithExercises(student, room);
+            student.updatedAt = Date.now();
+            broadcastState(roomCode);
+        });
+
+        socket.on("student:set-exercise-complete", (payload) => {
+            const student = room.students.get(sessionId);
+            if (!student) {
+                return;
+            }
+
+            if (room.requireName && !student.name) {
+                return;
+            }
+
+            const requestedExerciseNumber = Math.max(0, Math.floor(Number(payload && payload.exerciseNumber) || 0));
+            if (requestedExerciseNumber <= 0) {
+                return;
+            }
+
+            const boundedExerciseNumber = room.totalExercises > 0
+                ? Math.min(requestedExerciseNumber, room.totalExercises)
+                : requestedExerciseNumber;
+            const markCompleted = Boolean(payload && payload.completed);
+            const completedExerciseNumbers = ensureStudentCompletedExerciseNumbers(student, room);
+            const hasExercise = completedExerciseNumbers.includes(boundedExerciseNumber);
+
+            if (markCompleted && hasExercise) {
+                return;
+            }
+
+            if (!markCompleted && !hasExercise) {
+                return;
+            }
+
+            student.completedExerciseNumbers = markCompleted
+                ? completedExerciseNumbers.concat([boundedExerciseNumber]).sort((a, b) => a - b)
+                : completedExerciseNumbers.filter((entry) => entry !== boundedExerciseNumber);
             syncStudentReadyWithExercises(student, room);
             student.updatedAt = Date.now();
             broadcastState(roomCode);
@@ -427,7 +670,10 @@ io.on("connection", (socket) => {
         });
 
         socket.on("disconnect", () => {
-            room.connectedStudentSockets.delete(sessionId);
+            const mappedSocketId = room.connectedStudentSockets.get(sessionId);
+            if (mappedSocketId === socket.id) {
+                room.connectedStudentSockets.delete(sessionId);
+            }
             touchRoom(room);
             broadcastState(roomCode);
         });

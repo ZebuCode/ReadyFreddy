@@ -117,6 +117,29 @@ function setStoredNameForRoom(code, name) {
     writeRoomScopedMap(NAME_BY_ROOM_KEY, names);
 }
 
+function clearStoredStudentStateForRoom(code) {
+    const normalizedCode = normalizeRoomCode(code);
+    if (!normalizedCode) {
+        return;
+    }
+
+    const sessions = readRoomScopedMap(SESSION_BY_ROOM_KEY);
+    if (Object.prototype.hasOwnProperty.call(sessions, normalizedCode)) {
+        delete sessions[normalizedCode];
+        writeRoomScopedMap(SESSION_BY_ROOM_KEY, sessions);
+    }
+
+    const names = readRoomScopedMap(NAME_BY_ROOM_KEY);
+    if (Object.prototype.hasOwnProperty.call(names, normalizedCode)) {
+        delete names[normalizedCode];
+        writeRoomScopedMap(NAME_BY_ROOM_KEY, names);
+    }
+}
+
+function isSessionResetMessage(message) {
+    return String(message || "").toLowerCase().includes("session was reset");
+}
+
 function openNameModal() {
     nameModal.classList.remove("hidden");
     studentNameInput.value = studentName;
@@ -281,7 +304,9 @@ previousExerciseBtn.addEventListener("click", () => {
         return;
     }
 
-    socket.emit("student:undo-exercise");
+    socket.emit("student:set-completed-exercises", {
+        completedExercises: Math.max(0, currentExerciseDone - 1),
+    });
 });
 
 helpBtn.addEventListener("click", () => {
@@ -345,7 +370,13 @@ function connectStudent() {
     });
 
     socket.on("state:update", (state) => {
-        counterText.textContent = `${state.readyCount} / ${state.totalCount} students are ready`;
+        const totalExercises = Number(state.totalExercises || 0);
+        if (totalExercises > 0) {
+            const maxExerciseCompletions = Math.max(0, totalExercises * Number(state.totalCount || 0));
+            counterText.textContent = `${state.readyCount} / ${state.totalCount} students are ready • ${state.completedExercises} / ${maxExerciseCompletions} exercises done`;
+        } else {
+            counterText.textContent = `${state.readyCount} / ${state.totalCount} students are ready`;
+        }
         requireName = Boolean(state.requireName);
         enableHelpButton = Boolean(state.enableHelpButton);
 
@@ -404,6 +435,17 @@ function connectStudent() {
     });
 
     socket.on("auth:error", (msg) => {
+        if (isSessionResetMessage(msg)) {
+            clearStoredStudentStateForRoom(roomCode);
+            localStorage.removeItem(SESSION_KEY);
+            localStorage.removeItem(NAME_KEY);
+            sessionId = "";
+            studentName = "";
+            hasName = false;
+            hasSubmittedNameThisVisit = false;
+            renderClassCode();
+        }
+
         showJoin();
         joinError.textContent = msg || "Invalid class code";
         statusText.textContent = "Not connected";

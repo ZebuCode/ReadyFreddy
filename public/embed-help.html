@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReadyFreddy Help Embed</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="embed-view">
+    <main class="embed-help-card">
+      <p id="embedHelpError" class="error hidden"></p>
+      <button id="embedHelpBtn" class="btn help-btn" type="button" aria-label="Need help" title="Need help" aria-pressed="false">
+        <img src="/images/help.png" alt="" class="help-btn-icon" />
+      </button>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/embed-help.js"></script>
+  </body>
+</html>

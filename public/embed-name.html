@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReadyFreddy Name Embed</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="embed-view embed-name-view">
+    <main class="embed-card">
+      <img src="/images/horizontal_logo.png" alt="Ready Freddy logo" class="embed-name-logo" />
+      <div id="embedNameRow" class="name-entry">
+        <label for="embedNameInput">Name</label>
+        <input id="embedNameInput" type="text" autocomplete="name" maxlength="32" placeholder="Enter your name" />
+        <button id="embedSaveNameBtn" class="btn" type="button" aria-label="Save name" title="Save name">
+          <span class="icon-glyph" aria-hidden="true">&#10003;</span>
+        </button>
+      </div>
+      <p id="embedOfflineState" class="embed-offline hidden">OFFLINE</p>
+      <p id="embedNameError" class="error hidden"></p>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/embed-name.js"></script>
+  </body>
+</html>

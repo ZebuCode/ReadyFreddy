@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exercise Test | ReadyFreddy</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="panel" style="max-width: 900px">
+      <h1 class="brand-title">Exercise test page</h1>
+      <p class="small muted">Paste your exercise iframe HTML and preview it.</p>
+
+      <div class="name-entry" style="margin-top: 0.8rem">
+        <label class="small muted" for="embedHtmlInput">Exercise iframe HTML</label>
+        <textarea
+          id="embedHtmlInput"
+          rows="4"
+          placeholder='<iframe src="/embed-exercise?class=ABC123&exercise=ABC123-01" width="100%" height="220" style="border:0;max-width:100%;" title="ReadyFreddy Excercise ABC123-01" loading="lazy"></iframe>'
+          style="border: 2px solid #c4d8fa; border-radius: 12px; padding: 0.7rem; font-family: Consolas, 'Courier New', monospace; font-size: 0.9rem; color: #173a77; background: #fcfeff; resize: vertical;"
+        ></textarea>
+      </div>
+
+      <div class="actions" style="margin-top: 0.9rem">
+        <button id="previewEmbedBtn" class="btn" type="button">Preview Embed</button>
+      </div>
+
+      <p id="testPageError" class="error hidden" style="margin-top: 0.6rem"></p>
+
+      <div style="margin-top: 1rem">
+        <p class="small muted">Embed preview</p>
+        <iframe
+          id="embedPreview"
+          title="ReadyFreddy exercise embed preview"
+          width="100%"
+          height="260"
+          style="border: 2px solid #d9e5f8; border-radius: 12px; background: #fff"
+        ></iframe>
+      </div>
+    </main>
+
+    <script>
+      const previewEmbedBtn = document.getElementById("previewEmbedBtn");
+      const embedHtmlInput = document.getElementById("embedHtmlInput");
+      const embedPreview = document.getElementById("embedPreview");
+      const testPageError = document.getElementById("testPageError");
+
+      function setError(message) {
+        testPageError.textContent = message;
+        testPageError.classList.toggle("hidden", !message);
+      }
+
+      function extractIframeSrc(html) {
+        const trimmedHtml = String(html || "").trim();
+        if (!trimmedHtml) {
+          return "";
+        }
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(trimmedHtml, "text/html");
+        const iframe = doc.querySelector("iframe");
+        if (!iframe) {
+          return "";
+        }
+
+        return String(iframe.getAttribute("src") || "").trim();
+      }
+
+      previewEmbedBtn.addEventListener("click", () => {
+        const src = extractIframeSrc(embedHtmlInput.value);
+        if (!src) {
+          setError("Please paste a valid iframe HTML snippet.");
+          return;
+        }
+
+        setError("");
+        embedPreview.src = src;
+      });
+    </script>
+  </body>
+</html>

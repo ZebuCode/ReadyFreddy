@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReadyFreddy Exercise Embed</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="embed-view embed-exercise-view">
+    <main class="embed-card">
+      <div id="embedNameRow" class="name-entry hidden">
+        <label class="small muted" for="embedNameInput">Your name</label>
+        <input id="embedNameInput" type="text" autocomplete="name" maxlength="32" placeholder="Enter your name" />
+        <button id="embedSaveNameBtn" class="btn" type="button" aria-label="Save name" title="Save name">
+          <span class="icon-glyph" aria-hidden="true">&#10003;</span>
+        </button>
+      </div>
+
+      <p id="embedError" class="error hidden"></p>
+
+      <label id="embedDoneRow" class="ready-checkbox-row" for="embedDoneCheckbox">
+        <input id="embedDoneCheckbox" class="ready-checkbox-input" type="checkbox" />
+        <span class="ready-checkbox-visual" aria-hidden="true">
+          <svg class="ready-check-svg" viewBox="0 0 64 64" aria-hidden="true">
+            <path class="ready-check-base" d="M16 33l11 11 21-24" />
+            <path class="ready-check-draw" d="M16 33l11 11 21-24" />
+          </svg>
+        </span>
+        <span id="embedDoneLabel" class="ready-checkbox-label">Ready?</span>
+      </label>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/embed-exercise.js"></script>
+  </body>
+</html>
