@@ -226,6 +226,10 @@ app.get("/student", (_req, res) => {
     res.sendFile(path.join(__dirname, "public", "student.html"));
 });
 
+app.get("/readyfreddy", (_req, res) => {
+    res.redirect("/");
+});
+
 app.get("/teacher", (_req, res) => {
     res.sendFile(path.join(__dirname, "public", "teacher.html"));
 });
