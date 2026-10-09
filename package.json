@@ -4,6 +4,7 @@
   "description": "Simple live classroom readiness tracker",
   "main": "server.js",
   "scripts": {
+    "dev": "node server.js",
     "build": "npm ci",
     "serve": "node server.js",
     "start": "node server.js"
