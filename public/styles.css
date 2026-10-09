@@ -420,6 +420,7 @@ p {
   justify-content: center;
   font-size: 1.35rem;
   text-decoration: none;
+  cursor: pointer;
   box-shadow: 0 8px 20px rgba(16, 59, 138, 0.12);
   transition: transform 120ms ease, filter 120ms ease;
 }
@@ -514,6 +515,7 @@ p {
   grid-template-columns: 1fr auto 1fr;
   align-items: baseline;
   gap: 0.8rem;
+  margin-top: 0.5rem;
 }
 
 .share-code-row > :first-child {
@@ -535,7 +537,9 @@ p {
   grid-template-columns: 1fr auto 1fr;
   align-items: baseline;
   gap: 1rem;
-  margin-bottom: 0.8rem;
+  padding: 0.35rem 0;
+  margin-top: 1.2rem;
+  margin-bottom: 1.2rem;
 }
 
 .classroom-code-row .room-code {
@@ -568,6 +572,7 @@ p {
   align-self: center;
   display: flex;
   align-items: center;
+  min-height: 36px;
 }
 
 .classroom-row-controls .btn {
@@ -577,6 +582,18 @@ p {
 
 #resetSessionProgressBtn {
   color: #ff3b30;
+}
+
+#copyAllEmbedsBtn,
+#copyNameEmbedBtn,
+#copyHelpEmbedBtn,
+#resetSessionProgressBtn {
+  width: calc(13ch + 1.6rem);
+  min-height: 36px;
+  padding: 0.35rem 0.6rem;
+  max-width: 100%;
+  text-align: center;
+  white-space: nowrap;
 }
 
 #confirmDeleteSessionBtn,
@@ -623,6 +640,8 @@ p {
   gap: 0.55rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
+  min-height: 36px;
 }
 
 .exercise-summary-row {
@@ -635,6 +654,10 @@ p {
 
 .exercise-summary-row #exerciseSummary {
   margin: 0;
+}
+
+.exercise-summary-row .summary-row-actions {
+  margin-left: auto;
 }
 
 .exercise-input-row {
@@ -727,6 +750,67 @@ p {
 
 .exercise-identifier-section {
   margin: 0.4rem 0 1rem;
+}
+
+.embed-toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  color: var(--muted);
+}
+
+.embed-toggle-row input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.embed-toggle-slider {
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #c4d8fa;
+  border: 2px solid #9ec0f6;
+  position: relative;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.embed-toggle-slider::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(16, 59, 138, 0.25);
+  transition: transform 140ms ease;
+}
+
+.embed-toggle-row input:checked ~ .embed-toggle-slider {
+  background: var(--brand-green);
+  border-color: var(--brand-green-strong);
+}
+
+.embed-toggle-row input:checked ~ .embed-toggle-slider::after {
+  transform: translateX(18px);
+}
+
+.embed-toggle-row input:focus-visible ~ .embed-toggle-slider {
+  outline: 3px solid #88abf0;
+  outline-offset: 2px;
+}
+
+.embed-toggle-label {
+  white-space: nowrap;
+}
+
+.embed-toggle-row input:checked ~ .embed-toggle-label {
+  display: none;
 }
 
 .exercise-identifier-list {
@@ -1207,8 +1291,14 @@ p {
   }
 
   .exercise-summary-row {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .exercise-summary-row .summary-row-actions {
+    width: auto;
+    margin-left: auto;
   }
 
   .exercise-input-row {

@@ -13,14 +13,11 @@
         <div class="teacher-header-main">
           <div class="teacher-title-row">
             <h1 class="brand-title teacher-title">Teacher dashboard</h1>
-            <button id="loginBtn" class="teacher-profile-btn" type="button" aria-label="Profile or login" title="Profile / Login">
-              <span class="person-icon" aria-hidden="true"></span>
-            </button>
           </div>
           <div class="teacher-header-actions">
             <button id="configureExercisesBtn" class="btn ghost" type="button">Configure Session</button>
             <button id="resetBtn" class="btn ghost" type="button">New Session</button>
-            <button id="manageSessionsBtn" class="btn ghost hidden" type="button">Manage Sessions</button>
+            <button id="manageSessionsBtn" class="btn ghost" type="button">Manage Sessions</button>
           </div>
         </div>
       </div>
@@ -45,9 +42,14 @@
       <div class="exercise-summary-row">
         <p id="exerciseSummary" class="small muted">0 / 0 exercises done</p>
         <div class="summary-row-actions">
-          <button id="copyAllEmbedsBtn" class="btn ghost hidden" type="button">Copy All Embeds</button>
-          <button id="copyNameEmbedBtn" class="btn ghost hidden" type="button">Copy Name Embed</button>
-          <button id="copyHelpEmbedBtn" class="btn ghost hidden" type="button">Copy Help Embed</button>
+          <button id="copyAllEmbedsBtn" class="btn ghost hidden" type="button">Embed all</button>
+          <button id="copyNameEmbedBtn" class="btn ghost hidden" type="button">Embed name</button>
+          <button id="copyHelpEmbedBtn" class="btn ghost hidden" type="button">Embed help</button>
+          <label id="embedButtonsToggleRow" class="embed-toggle-row small muted hidden" for="embedButtonsToggle">
+            <input id="embedButtonsToggle" type="checkbox" />
+            <span class="embed-toggle-label">Embed</span>
+            <span class="embed-toggle-slider" aria-hidden="true"></span>
+          </label>
         </div>
       </div>
       <section id="exerciseIdentifierSection" class="exercise-identifier-section hidden" aria-live="polite">
@@ -88,6 +90,8 @@
         <p class="small muted">Sessions started with the Custom option.</p>
         <ul id="customSessionsList" class="custom-sessions-list"></ul>
         <div class="modal-actions">
+          <button id="importCustomSessionsBtn" class="btn ghost" type="button">Import</button>
+          <button id="exportCustomSessionsBtn" class="btn ghost" type="button">Export</button>
           <button id="closeManageSessionsBtn" class="btn ghost" type="button">Close</button>
         </div>
       </div>
@@ -141,24 +145,6 @@
           <button id="cancelExerciseBtn" class="btn ghost" type="button">Cancel</button>
           <button id="saveExerciseBtn" class="btn" type="button">Save</button>
         </div>
-      </div>
-    </div>
-
-    <div id="loginModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
-      <div class="modal-card">
-        <h2 id="loginModalTitle">Teacher login</h2>
-        <p class="small muted">Sign in to your teacher account.</p>
-        <form id="loginForm" class="login-form">
-          <label class="small muted" for="loginEmail">Username</label>
-          <input id="loginEmail" type="text" autocomplete="username" required />
-          <label class="small muted" for="loginPassword">Password</label>
-          <input id="loginPassword" type="password" autocomplete="current-password" required />
-          <p id="loginError" class="error hidden">Invalid username or password.</p>
-          <div class="modal-actions">
-            <button id="cancelLoginBtn" class="btn ghost" type="button">Cancel</button>
-            <button id="submitLoginBtn" class="btn" type="submit">Log in</button>
-          </div>
-        </form>
       </div>
     </div>
 

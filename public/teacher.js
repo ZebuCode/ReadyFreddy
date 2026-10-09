@@ -1,6 +1,5 @@
 const ROOM_CODE_KEY = "readyfreddy.teacherRoomCode";
 const CUSTOM_SESSIONS_KEY = "readyfreddy.teacherCustomSessions";
-const TEACHER_LOGGED_IN_KEY = "readyfreddy.teacherLoggedIn";
 
 const roomCodeText = document.getElementById("roomCode");
 const currentSessionNameText = document.getElementById("currentSessionName");
@@ -11,7 +10,6 @@ const studentList = document.getElementById("studentList");
 const copyAllEmbedsBtn = document.getElementById("copyAllEmbedsBtn");
 const copyNameEmbedBtn = document.getElementById("copyNameEmbedBtn");
 const copyHelpEmbedBtn = document.getElementById("copyHelpEmbedBtn");
-const loginBtn = document.getElementById("loginBtn");
 const resetBtn = document.getElementById("resetBtn");
 const manageSessionsBtn = document.getElementById("manageSessionsBtn");
 const configureExercisesBtn = document.getElementById("configureExercisesBtn");
@@ -26,6 +24,8 @@ const cancelExerciseBtn = document.getElementById("cancelExerciseBtn");
 const saveExerciseBtn = document.getElementById("saveExerciseBtn");
 const exerciseSummary = document.getElementById("exerciseSummary");
 const exerciseIdentifierSection = document.getElementById("exerciseIdentifierSection");
+const embedButtonsToggleRow = document.getElementById("embedButtonsToggleRow");
+const embedButtonsToggle = document.getElementById("embedButtonsToggle");
 const exerciseIdentifierList = document.getElementById("exerciseIdentifierList");
 const resetModal = document.getElementById("resetModal");
 const sessionTypeModal = document.getElementById("sessionTypeModal");
@@ -34,18 +34,14 @@ const deleteSessionModal = document.getElementById("deleteSessionModal");
 const resetSessionProgressModal = document.getElementById("resetSessionProgressModal");
 const deleteSessionModalText = document.getElementById("deleteSessionModalText");
 const exerciseModal = document.getElementById("exerciseModal");
-const loginModal = document.getElementById("loginModal");
-const loginForm = document.getElementById("loginForm");
-const loginEmailInput = document.getElementById("loginEmail");
-const loginPasswordInput = document.getElementById("loginPassword");
-const loginError = document.getElementById("loginError");
 const cancelResetBtn = document.getElementById("cancelResetBtn");
 const confirmResetBtn = document.getElementById("confirmResetBtn");
-const cancelLoginBtn = document.getElementById("cancelLoginBtn");
 const cancelSessionTypeBtn = document.getElementById("cancelSessionTypeBtn");
 const simpleSessionBtn = document.getElementById("simpleSessionBtn");
 const customSessionBtn = document.getElementById("customSessionBtn");
 const customSessionsList = document.getElementById("customSessionsList");
+const importCustomSessionsBtn = document.getElementById("importCustomSessionsBtn");
+const exportCustomSessionsBtn = document.getElementById("exportCustomSessionsBtn");
 const closeManageSessionsBtn = document.getElementById("closeManageSessionsBtn");
 const cancelDeleteSessionBtn = document.getElementById("cancelDeleteSessionBtn");
 const confirmDeleteSessionBtn = document.getElementById("confirmDeleteSessionBtn");
@@ -54,7 +50,6 @@ const confirmResetSessionProgressBtn = document.getElementById("confirmResetSess
 
 let socket;
 let roomCodeTooltip;
-let isTeacherLoggedIn = false;
 let showExerciseIdentifiers = false;
 let pendingCustomSessionStart = false;
 let customSessions = [];
@@ -62,6 +57,7 @@ let pendingSwitchRoomCode = "";
 let switchSessionFallbackTimerId = 0;
 let roomCodePendingDeletion = "";
 let latestTeacherState = null;
+let showEmbedButtons = false;
 
 function normalizeSessionName(value) {
     return String(value || "")
@@ -80,26 +76,13 @@ function getInitialTeacherRoomCode() {
     return String(localStorage.getItem(ROOM_CODE_KEY) || "").trim().toUpperCase();
 }
 
-function getInitialLoggedInState() {
-    const params = new URLSearchParams(window.location.search);
-    const queryLoggedIn = String(params.get("teacherLoggedIn") || "").trim();
-    if (queryLoggedIn === "1" || queryLoggedIn.toLowerCase() === "true") {
-        localStorage.setItem(TEACHER_LOGGED_IN_KEY, "1");
-        return true;
-    }
-
-    const persisted = String(localStorage.getItem(TEACHER_LOGGED_IN_KEY) || "").trim().toLowerCase();
-    return persisted === "1" || persisted === "true";
-}
-
 function updateTeacherUrlState(roomCode) {
     const normalizedCode = String(roomCode || "").trim().toUpperCase();
     if (!normalizedCode) {
         return;
     }
 
-    const loggedInQueryValue = isTeacherLoggedIn ? "1" : "0";
-    const nextUrl = `/teacher?roomCode=${encodeURIComponent(normalizedCode)}&teacherLoggedIn=${loggedInQueryValue}`;
+    const nextUrl = `/teacher?roomCode=${encodeURIComponent(normalizedCode)}`;
     window.history.replaceState({}, "", nextUrl);
 }
 
@@ -171,7 +154,7 @@ async function copyAllEmbedsCode() {
         withLockedButtonWidth(
             copyAllEmbedsBtn,
             () => {
-                copyAllEmbedsBtn.textContent = "Nothing to copy";
+                copyAllEmbedsBtn.textContent = "No embeds";
             },
             () => {
                 copyAllEmbedsBtn.textContent = originalText;
@@ -200,7 +183,7 @@ async function copyAllEmbedsCode() {
         withLockedButtonWidth(
             copyAllEmbedsBtn,
             () => {
-                copyAllEmbedsBtn.textContent = "Copy failed";
+                copyAllEmbedsBtn.textContent = "Failed";
             },
             () => {
                 copyAllEmbedsBtn.textContent = originalText;
@@ -295,21 +278,6 @@ function closeResetSessionProgressModal() {
     resetSessionProgressModal.classList.add("hidden");
 }
 
-function openLoginModal() {
-    loginModal.classList.remove("hidden");
-    loginError.classList.add("hidden");
-    loginEmailInput.focus();
-}
-
-function closeLoginModal() {
-    loginModal.classList.add("hidden");
-    loginError.classList.add("hidden");
-}
-
-function syncLoggedInUi() {
-    manageSessionsBtn.classList.toggle("hidden", !isTeacherLoggedIn);
-}
-
 function switchToManagedSession(roomCode) {
     const normalizedCode = String(roomCode || "").trim().toUpperCase();
     if (!normalizedCode) {
@@ -327,7 +295,7 @@ function switchToManagedSession(roomCode) {
     }
 
     switchSessionFallbackTimerId = window.setTimeout(() => {
-        const fallbackUrl = `/teacher?roomCode=${encodeURIComponent(normalizedCode)}&teacherLoggedIn=1`;
+        const fallbackUrl = `/teacher?roomCode=${encodeURIComponent(normalizedCode)}`;
         window.location.assign(fallbackUrl);
     }, 450);
 
@@ -372,6 +340,26 @@ function saveCustomSessions() {
     localStorage.setItem(CUSTOM_SESSIONS_KEY, JSON.stringify(customSessions));
 }
 
+function sanitizeCustomSessionEntry(session) {
+    if (!session || typeof session !== "object") {
+        return null;
+    }
+
+    const roomCode = String(session.roomCode || "").trim().toUpperCase();
+    if (!roomCode) {
+        return null;
+    }
+
+    return {
+        roomCode,
+        createdAt: Number(session.createdAt) || Date.now(),
+        totalExercises: Math.max(0, Math.floor(Number(session.totalExercises) || 0)),
+        requireName: Boolean(session.requireName),
+        enableHelpButton: Boolean(session.enableHelpButton),
+        sessionName: normalizeSessionName(session.sessionName),
+    };
+}
+
 function loadCustomSessions() {
     try {
         const raw = localStorage.getItem(CUSTOM_SESSIONS_KEY);
@@ -387,15 +375,8 @@ function loadCustomSessions() {
         }
 
         customSessions = parsed
-            .filter((session) => session && typeof session.roomCode === "string")
-            .map((session) => ({
-                roomCode: String(session.roomCode || "").trim().toUpperCase(),
-                createdAt: Number(session.createdAt) || Date.now(),
-                totalExercises: Math.max(0, Math.floor(Number(session.totalExercises) || 0)),
-                requireName: Boolean(session.requireName),
-                enableHelpButton: Boolean(session.enableHelpButton),
-                sessionName: normalizeSessionName(session.sessionName),
-            }));
+            .map((session) => sanitizeCustomSessionEntry(session))
+            .filter((session) => session);
     } catch (error) {
         console.error("Failed to load custom sessions:", error);
         customSessions = [];
@@ -540,6 +521,141 @@ function renderCustomSessionsList() {
     });
 }
 
+function buildCustomSessionsExportFileName() {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    return `readyfreddy-custom-sessions-${timestamp}.json`;
+}
+
+function exportCustomSessions() {
+    const originalText = exportCustomSessionsBtn ? exportCustomSessionsBtn.textContent : "Export";
+    const payload = {
+        exportedAt: new Date().toISOString(),
+        sessions: customSessions.map((session) => ({ ...session })),
+    };
+
+    try {
+        const json = JSON.stringify(payload, null, 2);
+        const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = buildCustomSessionsExportFileName();
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+
+        withLockedButtonWidth(
+            exportCustomSessionsBtn,
+            () => {
+                exportCustomSessionsBtn.textContent = "Exported";
+            },
+            () => {
+                exportCustomSessionsBtn.textContent = originalText;
+            }
+        );
+    } catch (error) {
+        console.error("Failed to export custom sessions:", error);
+        withLockedButtonWidth(
+            exportCustomSessionsBtn,
+            () => {
+                exportCustomSessionsBtn.textContent = "Export failed";
+            },
+            () => {
+                exportCustomSessionsBtn.textContent = originalText;
+            }
+        );
+    }
+}
+
+function parseImportedCustomSessions(jsonText) {
+    const parsed = JSON.parse(jsonText);
+    const sourceSessions = Array.isArray(parsed)
+        ? parsed
+        : (parsed && typeof parsed === "object" && Array.isArray(parsed.sessions) ? parsed.sessions : null);
+
+    if (!sourceSessions) {
+        throw new Error("Import file must be an array or an object with a sessions array");
+    }
+
+    return sourceSessions
+        .map((session) => sanitizeCustomSessionEntry(session))
+        .filter((session) => session);
+}
+
+function mergeImportedCustomSessions(importedSessions) {
+    const seen = new Set();
+    const merged = [];
+
+    importedSessions.forEach((session) => {
+        if (seen.has(session.roomCode)) {
+            return;
+        }
+
+        seen.add(session.roomCode);
+        merged.push(session);
+    });
+
+    customSessions.forEach((session) => {
+        if (seen.has(session.roomCode)) {
+            return;
+        }
+
+        seen.add(session.roomCode);
+        merged.push(session);
+    });
+
+    customSessions = merged;
+}
+
+function importCustomSessions() {
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = ".json,application/json";
+
+    picker.addEventListener("change", async () => {
+        const originalText = importCustomSessionsBtn ? importCustomSessionsBtn.textContent : "Import";
+        const selectedFile = picker.files && picker.files[0];
+        if (!selectedFile) {
+            return;
+        }
+
+        try {
+            const importedSessions = parseImportedCustomSessions(await selectedFile.text());
+            mergeImportedCustomSessions(importedSessions);
+            saveCustomSessions();
+            renderCustomSessionsList();
+
+            const currentRoomCode = String(roomCodeText.textContent || "").trim().toUpperCase();
+            syncShowExerciseIdentifiersForRoom(currentRoomCode);
+            syncCurrentSessionNameLabel(currentRoomCode);
+
+            withLockedButtonWidth(
+                importCustomSessionsBtn,
+                () => {
+                    importCustomSessionsBtn.textContent = "Imported";
+                },
+                () => {
+                    importCustomSessionsBtn.textContent = originalText;
+                }
+            );
+        } catch (error) {
+            console.error("Failed to import custom sessions:", error);
+            withLockedButtonWidth(
+                importCustomSessionsBtn,
+                () => {
+                    importCustomSessionsBtn.textContent = "Import failed";
+                },
+                () => {
+                    importCustomSessionsBtn.textContent = originalText;
+                }
+            );
+        }
+    });
+
+    picker.click();
+}
+
 function getExerciseEmbedCode(classIdentifier, exerciseIdentifier) {
     const embedUrl = `${window.location.origin}/embed-exercise?class=${encodeURIComponent(classIdentifier)}&exercise=${encodeURIComponent(exerciseIdentifier)}`;
     return `<iframe src="${embedUrl}" width="72" height="70" style="border:0;max-width:100%;" title="ReadyFreddy Excercise ${exerciseIdentifier}" loading="lazy"></iframe>`;
@@ -620,7 +736,7 @@ async function copyExerciseEmbedCode(button, classIdentifier, exerciseIdentifier
         button.textContent = "Copied";
     } catch (error) {
         console.error("Failed to copy embed code:", error);
-        button.textContent = "Copy failed";
+        button.textContent = "Failed";
     }
 
     window.setTimeout(() => {
@@ -657,7 +773,7 @@ async function copyHelpEmbedCode() {
         withLockedButtonWidth(
             copyHelpEmbedBtn,
             () => {
-                copyHelpEmbedBtn.textContent = "Copy failed";
+                copyHelpEmbedBtn.textContent = "Failed";
             },
             () => {
                 copyHelpEmbedBtn.textContent = originalText;
@@ -695,7 +811,7 @@ async function copyNamePromptEmbedCode() {
         withLockedButtonWidth(
             copyNameEmbedBtn,
             () => {
-                copyNameEmbedBtn.textContent = "Copy failed";
+                copyNameEmbedBtn.textContent = "Failed";
             },
             () => {
                 copyNameEmbedBtn.textContent = originalText;
@@ -743,6 +859,7 @@ function renderExerciseIdentifiers(roomCode, totalExercises, students) {
         const embedButton = document.createElement("button");
         embedButton.type = "button";
         embedButton.className = "btn ghost exercise-embed-btn";
+        embedButton.classList.toggle("hidden", !showEmbedButtons);
         embedButton.textContent = "Embed";
         embedButton.addEventListener("click", () => {
             copyExerciseEmbedCode(embedButton, classIdentifier, exerciseIdentifier);
@@ -779,10 +896,12 @@ function renderState(state) {
     requireNameCheckbox.checked = Boolean(state.requireName);
     enableHelpButtonCheckbox.checked = Boolean(state.enableHelpButton);
     syncHelpCheckboxAvailability();
-    copyNameEmbedBtn.classList.toggle("hidden", !(isCustomSession && Boolean(state.requireName)));
-    copyHelpEmbedBtn.classList.toggle("hidden", !(isCustomSession && Boolean(state.enableHelpButton)));
+    copyNameEmbedBtn.classList.toggle("hidden", !showEmbedButtons || !(isCustomSession && Boolean(state.requireName)));
+    copyHelpEmbedBtn.classList.toggle("hidden", !showEmbedButtons || !(isCustomSession && Boolean(state.enableHelpButton)));
     const hasEmbedOptions = hasExercises || (isCustomSession && (Boolean(state.requireName) || Boolean(state.enableHelpButton)));
-    copyAllEmbedsBtn.classList.toggle("hidden", !hasEmbedOptions);
+    copyAllEmbedsBtn.classList.toggle("hidden", !showEmbedButtons || !hasEmbedOptions);
+    embedButtonsToggleRow.classList.toggle("hidden", !hasEmbedOptions);
+    embedButtonsToggle.checked = showEmbedButtons;
     syncCurrentSessionNameLabel(classIdentifier);
 
     if (hasExercises) {
@@ -846,8 +965,6 @@ function renderState(state) {
 function initConnection() {
     const rememberedCode = getInitialTeacherRoomCode();
     loadCustomSessions();
-    isTeacherLoggedIn = getInitialLoggedInState();
-    syncLoggedInUi();
     syncShowExerciseIdentifiersForRoom(rememberedCode);
 
     socket = io({
@@ -913,12 +1030,7 @@ function initConnection() {
             return;
         }
 
-        if (isTeacherLoggedIn) {
-            openSessionTypeModal();
-            return;
-        }
-
-        openResetModal();
+        openSessionTypeModal();
     };
 
     configureExercisesBtn.onclick = () => {
@@ -930,15 +1042,7 @@ function initConnection() {
     };
 
     manageSessionsBtn.onclick = () => {
-        if (!isTeacherLoggedIn) {
-            return;
-        }
-
         openManageSessionsModal();
-    };
-
-    loginBtn.onclick = () => {
-        openLoginModal();
     };
 
     copyHelpEmbedBtn.onclick = () => {
@@ -979,15 +1083,22 @@ function initConnection() {
 }
 
 requireNameCheckbox.addEventListener("change", syncHelpCheckboxAvailability);
+embedButtonsToggle.addEventListener("change", () => {
+    showEmbedButtons = Boolean(embedButtonsToggle.checked);
+    if (latestTeacherState) {
+        renderState(latestTeacherState);
+    }
+});
 
 cancelResetBtn.addEventListener("click", closeResetModal);
 cancelExerciseBtn.addEventListener("click", closeExerciseModal);
-cancelLoginBtn.addEventListener("click", closeLoginModal);
 removeExerciseBtn.addEventListener("click", () => {
     exerciseAmountInput.value = "0";
 });
 cancelSessionTypeBtn.addEventListener("click", closeSessionTypeModal);
 closeManageSessionsBtn.addEventListener("click", closeManageSessionsModal);
+importCustomSessionsBtn.addEventListener("click", importCustomSessions);
+exportCustomSessionsBtn.addEventListener("click", exportCustomSessions);
 cancelDeleteSessionBtn.addEventListener("click", closeDeleteSessionModal);
 cancelResetSessionProgressBtn.addEventListener("click", closeResetSessionProgressModal);
 confirmDeleteSessionBtn.addEventListener("click", () => {
@@ -1097,37 +1208,7 @@ exerciseModal.addEventListener("click", (event) => {
     }
 });
 
-loginModal.addEventListener("click", (event) => {
-    if (event.target === loginModal) {
-        closeLoginModal();
-    }
-});
-
-loginForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const username = String(loginEmailInput.value || "").trim();
-    const password = String(loginPasswordInput.value || "");
-
-    if (username === "peter" && password === "123") {
-        isTeacherLoggedIn = true;
-        localStorage.setItem(TEACHER_LOGGED_IN_KEY, "1");
-        syncLoggedInUi();
-        updateTeacherUrlState(roomCodeText.textContent);
-        closeLoginModal();
-        return;
-    }
-
-    loginError.classList.remove("hidden");
-    loginPasswordInput.focus();
-});
-
 document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !loginModal.classList.contains("hidden")) {
-        closeLoginModal();
-        return;
-    }
-
     if (event.key === "Escape" && !sessionTypeModal.classList.contains("hidden")) {
         closeSessionTypeModal();
         return;
