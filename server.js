@@ -18,6 +18,7 @@ function createRoom() {
     return {
         students: new Map(),
         connectedStudentSockets: new Map(),
+        sessionByClientId: new Map(),
         teacherSockets: new Set(),
         totalExercises: 0,
         requireName: false,
@@ -58,6 +59,14 @@ function normalizeStudentName(input) {
 function normalizeRoomCode(input) {
     if (typeof input !== "string") {
         return "";
+    }
+
+    function normalizeClientId(input) {
+        if (typeof input !== "string") {
+            return "";
+        }
+
+        return input.trim().slice(0, 120);
     }
 
     return input.trim().toUpperCase();
@@ -438,6 +447,7 @@ io.on("connection", (socket) => {
 
             room.students.clear();
             room.connectedStudentSockets.clear();
+            room.sessionByClientId.clear();
             broadcastState(roomCode);
         });
 
@@ -461,15 +471,22 @@ io.on("connection", (socket) => {
         const room = rooms.get(roomCode);
         let sessionId = socket.handshake.auth.sessionId;
         const incomingName = normalizeStudentName(socket.handshake.auth.name);
+        const clientId = normalizeClientId(socket.handshake.auth.clientId);
         touchRoom(room);
 
         if (!sessionId || typeof sessionId !== "string") {
-            sessionId = randomUUID();
+            const mappedSessionId = clientId ? room.sessionByClientId.get(clientId) : "";
+            sessionId = mappedSessionId || randomUUID();
         }
 
         socket.data.sessionId = sessionId;
+        socket.data.clientId = clientId;
         socket.data.roomCode = roomCode;
         socket.join(`room:${roomCode}`);
+
+        if (clientId) {
+            room.sessionByClientId.set(clientId, sessionId);
+        }
 
         room.connectedStudentSockets.set(sessionId, socket.id);
 

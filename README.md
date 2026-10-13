@@ -68,6 +68,7 @@ The teacher sees a live overview of who is ready and who is not.
 - Refreshing teacher page still shows current state
 - Reset clears all students to not ready
 - Student statuses remain stable per session
+- Refreshing a student page with multiple exercise iframes still keeps one student entry
 
 ### 9) Deployment approach
 

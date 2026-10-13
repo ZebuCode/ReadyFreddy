@@ -6,6 +6,7 @@ const embedHelpError = document.getElementById("embedHelpError");
 
 const SESSION_STORAGE_PREFIX = "readyfreddy.embed.session.";
 const NAME_STORAGE_PREFIX = "readyfreddy.embed.name.";
+const CLIENT_ID_KEY = "readyfreddy.clientId";
 
 let socket;
 let sessionId = "";
@@ -14,6 +15,7 @@ let enableHelpButton = false;
 let currentNeedsHelp = false;
 let hasReceivedState = false;
 let hasSavedName = false;
+const clientId = getOrCreateClientId();
 
 function setError(message) {
     embedHelpError.textContent = message;
@@ -25,6 +27,23 @@ function normalizeName(value) {
         .trim()
         .replace(/\s+/g, " ")
         .slice(0, 32);
+}
+
+function getOrCreateClientId() {
+    const existing = String(localStorage.getItem(CLIENT_ID_KEY) || "").trim();
+    if (existing) {
+        return existing;
+    }
+
+    const canUseCrypto = typeof window !== "undefined"
+        && window.crypto
+        && typeof window.crypto.randomUUID === "function";
+    const generated = canUseCrypto
+        ? window.crypto.randomUUID()
+        : `rf-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    localStorage.setItem(CLIENT_ID_KEY, generated);
+    return generated;
 }
 
 function isSessionResetMessage(message) {
@@ -58,6 +77,7 @@ function connect() {
             roomCode,
             sessionId,
             name: studentName,
+            clientId,
         },
     });
 

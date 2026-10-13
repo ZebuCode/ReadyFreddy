@@ -3,6 +3,7 @@ const ROOM_CODE_KEY = "readyfreddy.roomCode";
 const NAME_KEY = "readyfreddy.studentName";
 const SESSION_BY_ROOM_KEY = "readyfreddy.sessionByRoom";
 const NAME_BY_ROOM_KEY = "readyfreddy.studentNameByRoom";
+const CLIENT_ID_KEY = "readyfreddy.clientId";
 const CHECKMARK_DRAW_MS = 260;
 
 let roomCode = localStorage.getItem(ROOM_CODE_KEY) || "";
@@ -41,6 +42,7 @@ let hasSubmittedNameThisVisit = false;
 let currentNeedsHelp = false;
 let isCompletingExercise = false;
 let completeExerciseTimer = null;
+const clientId = getOrCreateClientId();
 
 function resolveBasePath() {
     const pathname = String(window.location.pathname || "");
@@ -77,6 +79,23 @@ function normalizeRoomCode(value) {
 
 function normalizeName(value) {
     return String(value || "").trim().slice(0, 40);
+}
+
+function getOrCreateClientId() {
+    const existing = String(localStorage.getItem(CLIENT_ID_KEY) || "").trim();
+    if (existing) {
+        return existing;
+    }
+
+    const canUseCrypto = typeof window !== "undefined"
+        && window.crypto
+        && typeof window.crypto.randomUUID === "function";
+    const generated = canUseCrypto
+        ? window.crypto.randomUUID()
+        : `rf-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    localStorage.setItem(CLIENT_ID_KEY, generated);
+    return generated;
 }
 
 function readRoomScopedMap(key) {
@@ -371,6 +390,7 @@ function connectStudent() {
             sessionId,
             roomCode,
             name: studentName,
+            clientId,
         },
     });
 
